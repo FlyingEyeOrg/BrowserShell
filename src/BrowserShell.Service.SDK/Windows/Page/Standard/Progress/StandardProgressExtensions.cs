@@ -2,15 +2,15 @@ namespace BrowserShell.Service.SDK;
 
 public static class StandardProgressExtensions
 {
-    public static Task<WindowHandle> ShowStandardProgressAsync(
+    public static Task<PageWindowHandle> ShowStandardProgressAsync(
         this IPageWindowService windows,
         StandardProgressRequest request,
-        WindowOptions? options = null,
+        PageWindowOptions? options = null,
         CancellationToken cancellationToken = default) =>
         windows.ShowAsync(StandardViews.Progress, request, options, cancellationToken);
 
     public static Task UpdateStandardProgressAsync(
-        this WindowHandle handle,
+        this PageWindowHandle handle,
         StandardProgressRequest request,
         CancellationToken cancellationToken = default) =>
         handle.UpdateAsync(request, cancellationToken);

@@ -10,19 +10,19 @@ namespace BrowserShell.Service.SDK;
 internal sealed partial class PageWindowService : IPageWindowService, IWindowHandleOperations
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly WindowStore _store;
+    private readonly PageWindowStore _store;
     private readonly IPageWindowEventSink _events;
     private readonly IPageWindowTransport? _notifier;
     private readonly IServiceScopeFactory? _scopeFactory;
     private readonly ILogger<PageWindowService> _logger;
     private readonly WindowOwnershipRegistry _ownership;
     private readonly IViewCatalog _views;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<WindowCompletion>> _waiters = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, TaskCompletionSource<PageWindowCompletion>> _waiters = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _notificationTimers = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, IWindowLifecycleRegistration> _lifecycles = new(StringComparer.Ordinal);
 
     internal PageWindowService(
-        WindowStore store,
+        PageWindowStore store,
         IPageWindowEventSink events,
         IViewCatalog views,
         IPageWindowTransport? notifier = null,
@@ -42,7 +42,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
     public async Task<DialogResult<TResult>> ShowDialogAsync<TData, TResult>(
         string viewName,
         TData data,
-        WindowOptions? options = null,
+        PageWindowOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         var handle = await CreateAsync<TData, TResult>(viewName, data, true, options, null, cancellationToken);
@@ -52,8 +52,8 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
     public async Task<DialogResult<TResult>> ShowDialogAsync<TData, TResult>(
         string viewName,
         TData data,
-        WindowOptions? options,
-        WindowLifecycle<TResult> lifecycle,
+        PageWindowOptions? options,
+        PageWindowLifecycle<TResult> lifecycle,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lifecycle);
@@ -62,7 +62,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
     }
 
     private async Task<DialogResult<TResult>> WaitForDialogAsync<TResult>(
-        WindowHandle handle,
+        PageWindowHandle handle,
         CancellationToken cancellationToken)
     {
         try
@@ -85,52 +85,52 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         }
     }
 
-    public Task<WindowHandle> ShowModalAsync<TData>(
+    public Task<PageWindowHandle> ShowModalAsync<TData>(
         string viewName,
         TData data,
-        WindowOptions? options = null,
+        PageWindowOptions? options = null,
         CancellationToken cancellationToken = default) =>
         CreateAsync<TData, JsonElement>(viewName, data, true, options, null, cancellationToken);
 
-    public Task<WindowHandle> ShowModalAsync<TData, TResult>(
+    public Task<PageWindowHandle> ShowModalAsync<TData, TResult>(
         string viewName,
         TData data,
-        WindowOptions? options,
-        WindowLifecycle<TResult> lifecycle,
+        PageWindowOptions? options,
+        PageWindowLifecycle<TResult> lifecycle,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lifecycle);
         return CreateAsync(viewName, data, true, options, lifecycle, cancellationToken);
     }
 
-    public Task<WindowHandle> ShowAsync<TData>(
+    public Task<PageWindowHandle> ShowAsync<TData>(
         string viewName,
         TData data,
-        WindowOptions? options = null,
+        PageWindowOptions? options = null,
         CancellationToken cancellationToken = default) =>
         CreateAsync<TData, JsonElement>(viewName, data, false, options, null, cancellationToken);
 
-    public Task<WindowHandle> ShowAsync<TData, TResult>(
+    public Task<PageWindowHandle> ShowAsync<TData, TResult>(
         string viewName,
         TData data,
-        WindowOptions? options,
-        WindowLifecycle<TResult> lifecycle,
+        PageWindowOptions? options,
+        PageWindowLifecycle<TResult> lifecycle,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(lifecycle);
         return CreateAsync(viewName, data, false, options, lifecycle, cancellationToken);
     }
 
-    private async Task<WindowHandle> CreateAsync<TData, TResult>(
+    private async Task<PageWindowHandle> CreateAsync<TData, TResult>(
         string name,
         TData data,
         bool modal,
-        WindowOptions? options,
-        WindowLifecycle<TResult>? lifecycle,
+        PageWindowOptions? options,
+        PageWindowLifecycle<TResult>? lifecycle,
         CancellationToken token)
     {
         var view = _views.GetRequired(name);
-        options ??= new WindowOptions();
+        options ??= new PageWindowOptions();
         if (!modal && options.OwnerWindowId is not null)
             throw new ArgumentException("非模态 PageWindow 不能指定 OwnerWindowId。", nameof(options));
         var dataJson = JsonSerializer.Serialize(data, JsonOptions);
@@ -153,12 +153,12 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
             DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             TitleBar: titleBar);
 
-        WindowLifecycleRegistration<TResult>? registration = null;
+        PageWindowLifecycleRegistration<TResult>? registration = null;
         if (lifecycle is not null)
         {
             var scopeFactory = _scopeFactory
                 ?? throw new InvalidOperationException("BrowserShell 窗口生命周期需要可用的 IServiceScopeFactory。");
-            registration = new WindowLifecycleRegistration<TResult>(lifecycle, scopeFactory, JsonOptions);
+            registration = new PageWindowLifecycleRegistration<TResult>(lifecycle, scopeFactory, JsonOptions);
             if (!_lifecycles.TryAdd(value.Id, registration))
             {
                 registration.Dispose();
@@ -181,14 +181,14 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
             await _store.CreateAsync(value, token);
             stored = true;
             var request = Map(value);
-            var published = _events.Publish(WindowEventNames.Requested, request);
+            var published = _events.Publish(PageWindowEventNames.Requested, request);
             if (!published.Accepted)
             {
                 throw new InvalidOperationException($"BrowserShell 窗口事件发布失败：{published.Failure}");
             }
 
             if (_notifier is not null) await _notifier.UpsertAsync(request);
-            return new WindowHandle(value.Id, this);
+            return new PageWindowHandle(value.Id, this);
         }
         catch
         {
@@ -206,13 +206,13 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         StandardPageValidator.ValidateRequest(current.ViewName, json);
         var value = await _store.UpdateAsync(id, json, token);
         var request = Map(value);
-        _events.Publish(WindowEventNames.Updated, request);
+        _events.Publish(PageWindowEventNames.Updated, request);
         if (_notifier is not null) await _notifier.UpsertAsync(request);
     }
 
     internal async Task ActivateAsync(string id, CancellationToken token)
     {
-        _events.Publish(WindowEventNames.Updated, new { windowId = id, activate = true });
+        _events.Publish(PageWindowEventNames.Updated, new { windowId = id, activate = true });
         if (_notifier is not null) await _notifier.ActivateAsync(id);
     }
 
@@ -226,14 +226,14 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
 
     private async Task CloseSingleAsync(string id, CancellationToken token)
     {
-        if (!await CompleteCoreAsync(new WindowCompletionRequest
+        if (!await CompleteCoreAsync(new PageWindowCompletionRequest
             {
                 WindowId = id,
                 Status = "closed",
                 Action = null,
                 Result = null
             }, token)) return;
-        _events.Publish(WindowEventNames.Closed, new
+        _events.Publish(PageWindowEventNames.Closed, new
         {
             windowId = id,
             status = "closed",
@@ -245,23 +245,23 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
     internal async Task<DialogResult<TResult>> WaitAsync<TResult>(string id, CancellationToken token)
     {
         var current = await _store.GetAsync(id, token) ?? throw new InvalidOperationException($"窗口 {id} 不存在。");
-        WindowCompletion result;
+        PageWindowCompletion result;
         if (current.Status != "pending")
         {
-            result = new WindowCompletion(current.Status, current.Action, current.ResultJson);
+            result = new PageWindowCompletion(current.Status, current.Action, current.ResultJson);
         }
         else
         {
             var waiter = _waiters.GetOrAdd(
                 id,
-                _ => new TaskCompletionSource<WindowCompletion>(TaskCreationOptions.RunContinuationsAsynchronously));
+                _ => new TaskCompletionSource<PageWindowCompletion>(TaskCreationOptions.RunContinuationsAsynchronously));
             result = await waiter.Task.WaitAsync(token);
         }
 
         var value = result.ResultJson is null ? default : JsonSerializer.Deserialize<TResult>(result.ResultJson, JsonOptions);
         await _store.ConsumeCompletedAsync(id, token);
         return new DialogResult<TResult>(
-            result.Status == "completed" ? WindowEndState.Completed : WindowEndState.Closed,
+            result.Status == "completed" ? PageWindowEndState.Completed : PageWindowEndState.Closed,
             result.Action,
             value);
     }
@@ -271,7 +271,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         string status,
         string? action,
         JsonElement? result,
-        CancellationToken token) => CompleteCoreAsync(new WindowCompletionRequest
+        CancellationToken token) => CompleteCoreAsync(new PageWindowCompletionRequest
         {
             WindowId = id,
             Status = status,
@@ -280,7 +280,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         }, token);
 
     private async Task<bool> CompleteCoreAsync(
-        WindowCompletionRequest request,
+        PageWindowCompletionRequest request,
         CancellationToken token)
     {
         var current = await _store.GetAsync(request.WindowId, token)
@@ -299,12 +299,12 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
 
         if (_waiters.TryRemove(request.WindowId, out var waiter))
         {
-            waiter.TrySetResult(new WindowCompletion(request.Status, request.Action, json));
+            waiter.TrySetResult(new PageWindowCompletion(request.Status, request.Action, json));
         }
 
         _events.Publish(
-            WindowEventNames.Resolved,
-            new WindowResolution(request.WindowId, request.Status, request.Action, request.Result));
+            PageWindowEventNames.Resolved,
+            new PageWindowResolution(request.WindowId, request.Status, request.Action, request.Result));
         var resolved = current with
         {
             Status = request.Status,
@@ -320,7 +320,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         return true;
     }
 
-    public async Task<WindowStatus<TResult>?> GetStatusAsync<TResult>(
+    public async Task<PageWindowStatus<TResult>?> GetStatusAsync<TResult>(
         string windowId,
         CancellationToken cancellationToken = default)
     {
@@ -329,7 +329,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         var result = current.ResultJson is null
             ? default
             : JsonSerializer.Deserialize<TResult>(current.ResultJson, JsonOptions);
-        return new WindowStatus<TResult>(windowId, current.Status, current.Action, result);
+        return new PageWindowStatus<TResult>(windowId, current.Status, current.Action, result);
     }
 
     internal async Task<AgentWindowStateSnapshot?> GetAgentStateAsync(string windowId, CancellationToken token)
@@ -392,7 +392,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
 
             await _ownership.CloseDescendantsAsync(request.WindowId, deadline.Token).ConfigureAwait(false);
             return await CompleteCoreAsync(
-                    new WindowCompletionRequest
+                    new PageWindowCompletionRequest
                     {
                         WindowId = request.WindowId,
                         Status = request.State,
@@ -517,7 +517,7 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         {
             await Task.Delay(delay, timer.Token);
             var result = JsonSerializer.SerializeToElement(new StandardNotificationResult(null, true), JsonOptions);
-            await CompleteCoreAsync(new WindowCompletionRequest
+            await CompleteCoreAsync(new PageWindowCompletionRequest
             {
                 WindowId = windowId,
                 Status = "closed",
@@ -569,13 +569,13 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
     private async Task RunResolvedCallbackAsync(
         IWindowLifecycleRegistration lifecycle,
         StoredWindow window,
-        WindowCompletionRequest request)
+        PageWindowCompletionRequest request)
     {
         try
         {
             await lifecycle.ResolvedAsync(
                 window,
-                request.Status == "completed" ? WindowEndState.Completed : WindowEndState.Closed,
+                request.Status == "completed" ? PageWindowEndState.Completed : PageWindowEndState.Closed,
                 request.Action,
                 request.Result,
                 CancellationToken.None);
@@ -590,10 +590,10 @@ internal sealed partial class PageWindowService : IPageWindowService, IWindowHan
         }
     }
 
-    private static WindowCloseSource ParseCloseSource(string? source) =>
-        Enum.TryParse<WindowCloseSource>(source, true, out var value)
+    private static PageWindowCloseSource ParseCloseSource(string? source) =>
+        Enum.TryParse<PageWindowCloseSource>(source, true, out var value)
             ? value
-            : WindowCloseSource.Page;
+            : PageWindowCloseSource.Page;
 
     private static JsonElement? Serialize(object? value) =>
         value is null ? null : JsonSerializer.SerializeToElement(value, JsonOptions);

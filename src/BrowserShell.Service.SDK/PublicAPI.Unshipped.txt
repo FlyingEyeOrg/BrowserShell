@@ -7,8 +7,8 @@ BrowserShell.Service.SDK.BrowserWindowOptions.TitleBar.get -> BrowserShell.Servi
 BrowserShell.Service.SDK.BrowserWindowOptions.TitleBar.init -> void
 BrowserShell.Service.SDK.ViewDefinition.TitleBar.get -> BrowserShell.Service.SDK.WindowTitleBarOptions?
 BrowserShell.Service.SDK.ViewDefinition.TitleBar.init -> void
-BrowserShell.Service.SDK.WindowOptions.TitleBar.get -> BrowserShell.Service.SDK.WindowTitleBarOptions?
-BrowserShell.Service.SDK.WindowOptions.TitleBar.init -> void
+BrowserShell.Service.SDK.PageWindowOptions.TitleBar.get -> BrowserShell.Service.SDK.WindowTitleBarOptions?
+BrowserShell.Service.SDK.PageWindowOptions.TitleBar.init -> void
 BrowserShell.Service.SDK.WindowTitleBarOptions
 BrowserShell.Service.SDK.WindowTitleBarOptions.ActiveBackground.get -> string?
 BrowserShell.Service.SDK.WindowTitleBarOptions.ActiveBackground.init -> void
