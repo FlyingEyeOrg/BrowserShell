@@ -2,11 +2,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell", "src\BrowserShell.Service.SDK\BrowserShell.Service.SDK.csproj", "{BC7756C7-E7D7-43CC-B53D-AE40661DCE30}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.Service.SDK", "src\BrowserShell.Service.SDK\BrowserShell.Service.SDK.csproj", "{BC7756C7-E7D7-43CC-B53D-AE40661DCE30}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.Runtime", "src\BrowserShell.Runtime\BrowserShell.Runtime.csproj", "{34664996-7983-4513-A906-A3CCE68D4447}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.WebView.Wpf", "src\BrowserShell.WebView.Wpf\BrowserShell.WebView.Wpf.csproj", "{34664996-7983-4513-A906-A3CCE68D4447}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.Runtime.Tests", "tests\BrowserShell.Runtime.Tests\BrowserShell.Runtime.Tests.csproj", "{D7E87A96-63F7-4DF7-AA44-961A8F4C3C3F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.WebView.Wpf.Tests", "tests\BrowserShell.WebView.Wpf.Tests\BrowserShell.WebView.Wpf.Tests.csproj", "{D7E87A96-63F7-4DF7-AA44-961A8F4C3C3F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

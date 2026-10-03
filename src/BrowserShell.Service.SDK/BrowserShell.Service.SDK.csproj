@@ -28,7 +28,7 @@
     <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
   </ItemGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="BrowserShell.Runtime" />
-    <InternalsVisibleTo Include="BrowserShell.Runtime.Tests" />
+    <InternalsVisibleTo Include="BrowserShell.WebView.Wpf" />
+    <InternalsVisibleTo Include="BrowserShell.WebView.Wpf.Tests" />
   </ItemGroup>
 </Project>
