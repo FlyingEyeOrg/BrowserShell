@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Windows.Threading;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 
@@ -277,7 +277,7 @@ internal sealed class BrowserWindowManager : IAsyncDisposable
         if (!_registry.TryGet(serviceId, ownerWindowId, out var owner))
         {
             if (allowMissingOwner) return;
-            throw new InvalidOperationException($"Desktop 父窗口 {ownerWindowId} 不存在。");
+            throw new InvalidOperationException($"BrowserShell 父窗口 {ownerWindowId} 不存在。");
         }
 
         ApplyValidatedOwner(owner);

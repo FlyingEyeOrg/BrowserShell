@@ -12,7 +12,7 @@ internal sealed class AgentSystemWarningWindow : Window, IDisposable
 
     public AgentSystemWarningWindow()
     {
-        Title = "SoftwareHub BrowserShell";
+        Title = "BrowserShell";
         Icon = WindowIconResources.Default;
         Width = 520;
         Height = 260;

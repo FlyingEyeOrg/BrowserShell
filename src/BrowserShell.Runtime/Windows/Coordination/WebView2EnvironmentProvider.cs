@@ -19,7 +19,6 @@ internal sealed class WebView2EnvironmentProvider : IAsyncDisposable
     {
         _userDataRoot = Path.Combine(
             Path.GetTempPath(),
-            "SoftwareHub",
             "BrowserShell",
             $"{System.Environment.ProcessId}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(_userDataRoot);

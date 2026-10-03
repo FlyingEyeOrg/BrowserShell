@@ -1,4 +1,4 @@
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 

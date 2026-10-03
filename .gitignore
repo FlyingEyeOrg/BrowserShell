@@ -17,10 +17,6 @@ node_modules/
 dist/
 dist-ssr/
 *.tsbuildinfo
-src/SoftwareHub.ServiceConsole/out/
-src/SoftwareHub.ServiceConsole/release/
-src/SoftwareHub.DesktopAgent/out/
-src/SoftwareHub.DesktopAgent/release/
 *.local
 .vite/
 
@@ -52,8 +48,6 @@ data/auth-signing.key
 data/auth-clients.json
 data/service-registry.json
 secrets/
-!/src/SoftwareHub.Auth/Secrets/
-!/src/SoftwareHub.Auth/Secrets/**
 *.secret
 
 # === IDE ===
@@ -68,5 +62,3 @@ desktop.ini
 
 # === 发布产物 ===
 publish/
-src/SoftwareHub.DesktopAgent/tools/win-x86/
-src/SoftwareHub.DesktopAgent/tools/win-x64/

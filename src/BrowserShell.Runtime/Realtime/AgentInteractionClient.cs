@@ -1,16 +1,16 @@
 using Microsoft.AspNetCore.SignalR;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 
 /// <summary>通过当前租约的唯一 SignalR 连接向权威服务提交即时交互。</summary>
 internal sealed class AgentInteractionClient
 {
-    private readonly IHubContext<AgentDesktopHub> _hub;
+    private readonly IHubContext<BrowserShellHub> _hub;
     private readonly AgentClientSessionRegistry _sessions;
     private readonly RuntimeSettings _settings;
 
-    public AgentInteractionClient(IHubContext<AgentDesktopHub> hub,
+    public AgentInteractionClient(IHubContext<BrowserShellHub> hub,
         AgentClientSessionRegistry sessions, RuntimeSettings settings)
     {
         _hub = hub;
@@ -29,7 +29,7 @@ internal sealed class AgentInteractionClient
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _settings.Callback.ResponseTimeoutSeconds)));
         return await _hub.Clients.Client(session.ConnectionId)
             .InvokeCoreAsync<WindowResultAck>(
-                nameof(IAgentDesktopClient.CompleteWindowAsync),
+                nameof(IBrowserShellClient.CompleteWindowAsync),
                 [submission],
                 timeout.Token)
             .WaitAsync(timeout.Token);
@@ -48,7 +48,7 @@ internal sealed class AgentInteractionClient
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _settings.Callback.ResponseTimeoutSeconds)));
         return await _hub.Clients.Client(session.ConnectionId)
             .InvokeCoreAsync<WindowActionAck>(
-                nameof(IAgentDesktopClient.InvokeWindowActionAsync),
+                nameof(IBrowserShellClient.InvokeWindowActionAsync),
                 [submission],
                 timeout.Token)
             .WaitAsync(timeout.Token);
@@ -63,7 +63,7 @@ internal sealed class AgentInteractionClient
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _settings.Callback.ReconcileTimeoutSeconds)));
         return await _hub.Clients.Client(session.ConnectionId)
             .InvokeCoreAsync<AgentWindowStateSnapshot?>(
-                nameof(IAgentDesktopClient.GetWindowStateAsync),
+                nameof(IBrowserShellClient.GetWindowStateAsync),
                 [new WindowStateQuery(windowId)],
                 timeout.Token)
             .WaitAsync(timeout.Token);
@@ -82,7 +82,7 @@ internal sealed class AgentInteractionClient
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _settings.Callback.ResponseTimeoutSeconds)));
         return await _hub.Clients.Client(session.ConnectionId)
             .InvokeCoreAsync<WindowPresentedAck>(
-                nameof(IAgentDesktopClient.NotifyWindowPresentedAsync),
+                nameof(IBrowserShellClient.NotifyWindowPresentedAsync),
                 [notification],
                 timeout.Token)
             .WaitAsync(timeout.Token);
@@ -98,7 +98,7 @@ internal sealed class AgentInteractionClient
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _settings.Callback.ResponseTimeoutSeconds)));
         return await _hub.Clients.Client(session.ConnectionId)
             .InvokeCoreAsync<BrowserWindowClosingAck>(
-                nameof(IAgentDesktopClient.RequestBrowserWindowCloseAsync),
+                nameof(IBrowserShellClient.RequestBrowserWindowCloseAsync),
                 [request],
                 timeout.Token)
             .WaitAsync(timeout.Token);
@@ -113,7 +113,7 @@ internal sealed class AgentInteractionClient
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token, session.LeaseCancellation);
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(1, _settings.Callback.ResponseTimeoutSeconds)));
         await _hub.Clients.Client(session.ConnectionId)
-            .SendAsync(nameof(IAgentDesktopClient.NotifyBrowserWindowClosedAsync), notification, timeout.Token);
+            .SendAsync(nameof(IBrowserShellClient.NotifyBrowserWindowClosedAsync), notification, timeout.Token);
     }
 
     private AgentClientSession RequireOnlineSession(string serviceInstanceId)

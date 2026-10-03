@@ -22,7 +22,7 @@ internal sealed class AgentSystemWarningWindowManager : IAsyncDisposable
     public async Task InitializeAsync(CancellationToken token)
     {
         var userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "SoftwareHub", "BrowserShell", _settings.AgentId, "SystemWarning");
+            "BrowserShell", _settings.AgentId, "SystemWarning");
         Directory.CreateDirectory(userData);
         _environment = await CoreWebView2Environment.CreateAsync(_settings.WebView2RuntimePath, userData);
         token.ThrowIfCancellationRequested();

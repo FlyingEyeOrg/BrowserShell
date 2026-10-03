@@ -1,5 +1,4 @@
 using System.IO;
-using SoftwareHub.Auth;
 
 namespace BrowserShell.Runtime;
 

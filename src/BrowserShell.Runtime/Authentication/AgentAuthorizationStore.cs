@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 

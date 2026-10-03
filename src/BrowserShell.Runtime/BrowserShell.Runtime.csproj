@@ -6,6 +6,7 @@
     <AssemblyName>BrowserShell.Runtime</AssemblyName>
     <RootNamespace>BrowserShell.Runtime</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\BrowserShell.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
@@ -15,6 +16,9 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <ProjectReference Include="..\BrowserShell\BrowserShell.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\BrowserShell.ico" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="BrowserShell.Runtime.Tests" />

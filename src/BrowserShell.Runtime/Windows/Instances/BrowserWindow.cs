@@ -9,7 +9,7 @@ using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
 using Serilog;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 
@@ -311,7 +311,7 @@ internal sealed class BrowserWindow : IAsyncDisposable
         var handle = new WindowInteropHelper(_window).Handle;
         if (handle == IntPtr.Zero) return;
 
-        var target = DesktopMonitorResolver.Resolve(
+        var target = MonitorResolver.Resolve(
             _window.Owner,
             center ? null : _window);
         var maximumWidth = Math.Max(1, target.WorkAreaWidthDip);

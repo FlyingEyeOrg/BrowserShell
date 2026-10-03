@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <UseSelfContainedBrowserShellServiceSdk Condition="'$(UseSelfContainedBrowserShellServiceSdk)' == '' and '$(Configuration)' == 'Debug'">true</UseSelfContainedBrowserShellServiceSdk>
+    <UseSelfContainedBrowserShellServiceSdk Condition="'$(UseSelfContainedBrowserShellServiceSdk)' == ''">false</UseSelfContainedBrowserShellServiceSdk>
+    <_BrowserShellRuntimeRid Condition="'$(PlatformTarget)' == 'x86'">win-x86</_BrowserShellRuntimeRid>
+    <_BrowserShellRuntimeRid Condition="'$(_BrowserShellRuntimeRid)' == ''">win-x64</_BrowserShellRuntimeRid>
+  </PropertyGroup>
+  <Target Name="CopyBrowserShellRuntimeAssets"
+          AfterTargets="Build"
+          Condition="$([MSBuild]::IsOSPlatform('Windows')) and '$(UseSelfContainedBrowserShellServiceSdk)' == 'true'">
+    <ItemGroup>
+      <_BrowserShellRuntimeFiles Include="$(MSBuildThisFileDirectory)..\tools\$(_BrowserShellRuntimeRid)\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_BrowserShellRuntimeFiles)" DestinationFiles="@(_BrowserShellRuntimeFiles->'$(OutDir)BrowserShell.Runtime\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
+</Project>

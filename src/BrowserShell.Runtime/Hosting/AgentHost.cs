@@ -11,8 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Formatting.Compact;
-using BrowserShell;
-using SoftwareHub.Auth;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 
@@ -70,7 +69,7 @@ internal sealed class AgentHost : IAsyncDisposable
         if (settings.AuthenticationMode != RuntimeAuthenticationMode.EncryptedNetworkOAuth)
         {
             throw new InvalidOperationException(
-                "BrowserShell 仅支持 EncryptedNetworkOAuth；PlainHttpHmacControlPlane 不支持 Desktop 链路。");
+                "BrowserShell 仅支持 EncryptedNetworkOAuth；PlainHttpHmacControlPlane 不支持 BrowserShell 链路。");
         }
         ValidateLoopbackEndpoint(settings.Endpoint);
         builder.WebHost.UseUrls(settings.Endpoint);
@@ -115,7 +114,7 @@ internal sealed class AgentHost : IAsyncDisposable
         app.UseExceptionHandler();
         var infrastructureReady = 0;
         MapApi(app, settings, () => Volatile.Read(ref infrastructureReady) == 1);
-        app.MapHub<AgentDesktopHub>("/api/v1/hubs/clients");
+        app.MapHub<BrowserShellHub>("/api/v1/hubs/clients");
         await app.StartAsync(token);
         var webViewEnvironment = app.Services.GetRequiredService<WebView2EnvironmentProvider>();
         await webViewEnvironment.InitializeAsync(token);

@@ -1,7 +1,7 @@
 using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 

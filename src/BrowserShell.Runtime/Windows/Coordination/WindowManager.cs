@@ -9,7 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
 using Serilog;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 
 namespace BrowserShell.Runtime;
 
@@ -43,8 +43,8 @@ internal sealed class WindowManager : IAsyncDisposable
     private readonly ConcurrentDictionary<string, ImageSource> _serviceIcons = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _suspendedServices = new(StringComparer.Ordinal);
     private readonly Dictionary<string, Dictionary<(string Name, int Version), PageWindowPool>> _pagePools = new(StringComparer.Ordinal);
-    private readonly Dictionary<Window, PageWindowPool> _windowPools = [];
-    private readonly Dictionary<string, List<Window>> _windows = new(StringComparer.Ordinal);
+    private readonly Dictionary<ShellWindow, PageWindowPool> _windowPools = [];
+    private readonly Dictionary<string, List<ShellWindow>> _windows = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _disposeCancellation = new();
 
     public WindowManager(Dispatcher dispatcher, RuntimeSettings settings, AgentInteractionClient results,
@@ -248,7 +248,7 @@ internal sealed class WindowManager : IAsyncDisposable
         if (view is null)
         {
             _known.TryRemove(windowKey, out _);
-            throw new InvalidOperationException($"Desktop View {item.ViewName}@{item.ViewVersion} 未注册。");
+            throw new InvalidOperationException($"BrowserShell View {item.ViewName}@{item.ViewVersion} 未注册。");
         }
 
         await _dispatcher.InvokeAsync(async () =>
@@ -277,7 +277,7 @@ internal sealed class WindowManager : IAsyncDisposable
                 || pool.Retired)
             {
                 _known.TryRemove(windowKey, out _);
-                throw new InvalidOperationException($"Desktop View {view.Name}@{view.Version} 页面池尚未就绪。");
+                throw new InvalidOperationException($"BrowserShell View {view.Name}@{view.Version} 页面池尚未就绪。");
             }
 
             // 池中的窗口槽位已经计入总实例数；预热槽位可直接领取，零预热槽位按需初始化。
@@ -318,7 +318,7 @@ internal sealed class WindowManager : IAsyncDisposable
             if (pool.Idle.Count == 0)
             {
                 _known.TryRemove(windowKey, out _);
-                throw new InvalidOperationException($"Desktop View {view.Name}@{view.Version} 没有可用的窗口实例。");
+                throw new InvalidOperationException($"BrowserShell View {view.Name}@{view.Version} 没有可用的窗口实例。");
             }
 
             var window = pool.Idle.Dequeue();
@@ -339,7 +339,7 @@ internal sealed class WindowManager : IAsyncDisposable
                     list.Remove(window);
                     pool.Idle.Enqueue(window);
                     _known.TryRemove(windowKey, out _);
-                    throw new InvalidOperationException($"Desktop 父窗口 {item.OwnerWindowId} 不存在。");
+                    throw new InvalidOperationException($"BrowserShell 父窗口 {item.OwnerWindowId} 不存在。");
                 }
 
             }
@@ -369,7 +369,7 @@ internal sealed class WindowManager : IAsyncDisposable
                         StartReplenishment(pool);
                         return;
                     }
-                    throw new InvalidOperationException($"Desktop View {view.Name}@{view.Version} 页面初始化失败。");
+                    throw new InvalidOperationException($"BrowserShell View {view.Name}@{view.Version} 页面初始化失败。");
                 }
                 await window.ShowRequestAsync(item, owner?.Window, token);
                 // 页面可能在首次 onLoad 中立即完成或关闭；此时窗口已按服务终态归还，
@@ -507,7 +507,7 @@ internal sealed class WindowManager : IAsyncDisposable
         }
     }
 
-    private Window? ReservePoolWindow(PageWindowPool pool)
+    private ShellWindow? ReservePoolWindow(PageWindowPool pool)
     {
         if (_windowPools.Count >= _settings.WindowResources.MaxTotalWindowInstanceCount
             - _settings.WindowResources.ReservedSystemWarningWindowCount)
@@ -654,7 +654,7 @@ internal sealed class WindowManager : IAsyncDisposable
         }
     }
 
-    private Window CreateWindow(PageWindowPool pool) => new(new WindowContext
+    private ShellWindow CreateWindow(PageWindowPool pool) => new(new WindowContext
     {
         ServiceInstanceId = pool.ServiceInstanceId,
         View = pool.View,
@@ -706,7 +706,7 @@ internal sealed class WindowManager : IAsyncDisposable
         var iconUri = new Uri(endpoint, iconPath);
         if (!SameOrigin(endpoint, iconUri))
         {
-            throw new InvalidDataException("Desktop 图标必须与服务回调端点同源。");
+            throw new InvalidDataException("BrowserShell 图标必须与服务回调端点同源。");
         }
 
         using var request = new HttpRequestMessage(HttpMethod.Get, iconUri);
@@ -718,13 +718,13 @@ internal sealed class WindowManager : IAsyncDisposable
         response.EnsureSuccessStatusCode();
         if (response.Content.Headers.ContentLength is > MaximumIconBytes)
         {
-            throw new InvalidDataException($"Desktop 图标超过 {MaximumIconBytes} 字节限制。");
+            throw new InvalidDataException($"BrowserShell 图标超过 {MaximumIconBytes} 字节限制。");
         }
 
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         if (mediaType is not null && !SupportedIconMediaTypes.Contains(mediaType))
         {
-            throw new InvalidDataException($"Desktop 图标 Content-Type {mediaType} 不受支持。");
+            throw new InvalidDataException($"BrowserShell 图标 Content-Type {mediaType} 不受支持。");
         }
 
         await using var source = await response.Content.ReadAsStreamAsync(context.CancellationToken);
@@ -736,14 +736,14 @@ internal sealed class WindowManager : IAsyncDisposable
             if (read == 0) break;
             if (content.Length + read > MaximumIconBytes)
             {
-                throw new InvalidDataException($"Desktop 图标超过 {MaximumIconBytes} 字节限制。");
+                throw new InvalidDataException($"BrowserShell 图标超过 {MaximumIconBytes} 字节限制。");
             }
 
             await content.WriteAsync(buffer.AsMemory(0, read), context.CancellationToken);
         }
 
         var bytes = content.ToArray();
-        if (bytes.Length == 0) throw new InvalidDataException("Desktop 图标内容为空。");
+        if (bytes.Length == 0) throw new InvalidDataException("BrowserShell 图标内容为空。");
         return await _dispatcher.InvokeAsync(() =>
         {
             using var stream = new MemoryStream(bytes, writable: false);
@@ -763,7 +763,7 @@ internal sealed class WindowManager : IAsyncDisposable
         && string.Equals(expected.Host, actual.Host, StringComparison.OrdinalIgnoreCase)
         && expected.Port == actual.Port;
 
-    private Action OnReleasing(Window releasing)
+    private Action OnReleasing(ShellWindow releasing)
     {
         if (releasing.WindowId is { } windowId)
         {
@@ -772,7 +772,7 @@ internal sealed class WindowManager : IAsyncDisposable
         return static () => { };
     }
 
-    private void OnReleased(Window released)
+    private void OnReleased(ShellWindow released)
     {
         if (released.ReleasedWindowId is { } releasedWindowId)
         {
@@ -868,7 +868,7 @@ internal sealed class WindowManager : IAsyncDisposable
         }
     }
 
-    private Task CloseWindowsAsync(IEnumerable<Window> windows) => _dispatcher.InvokeAsync(() =>
+    private Task CloseWindowsAsync(IEnumerable<ShellWindow> windows) => _dispatcher.InvokeAsync(() =>
     {
         foreach (var window in windows)
         {
@@ -934,10 +934,10 @@ internal sealed class WindowManager : IAsyncDisposable
         _disposeCancellation.Dispose();
     }
 
-    private static Window[] OrderChildrenFirst(IEnumerable<Window> windows) =>
+    private static ShellWindow[] OrderChildrenFirst(IEnumerable<ShellWindow> windows) =>
         windows.OrderByDescending(GetOwnerDepth).ToArray();
 
-    private static int GetOwnerDepth(Window window)
+    private static int GetOwnerDepth(ShellWindow window)
     {
         var depth = 0;
         var owner = window.Owner;

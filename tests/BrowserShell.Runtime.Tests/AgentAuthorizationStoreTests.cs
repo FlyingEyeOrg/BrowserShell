@@ -1,4 +1,4 @@
-using BrowserShell;
+using BrowserShell.Service.SDK;
 using BrowserShell.Runtime;
 
 namespace BrowserShell.Runtime.Tests;

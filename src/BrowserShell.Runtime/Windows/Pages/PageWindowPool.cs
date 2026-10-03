@@ -1,4 +1,4 @@
-using BrowserShell;
+using BrowserShell.Service.SDK;
 using System.Windows.Media;
 
 namespace BrowserShell.Runtime;
@@ -18,7 +18,7 @@ internal sealed class PageWindowPool
 
     public required ImageSource Icon { get; init; }
 
-    public Queue<Window> Idle { get; } = new();
+    public Queue<ShellWindow> Idle { get; } = new();
 
     public int DesiredCapacity => View.PrewarmWindowCount;
 

@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
-using BrowserShell;
+using BrowserShell.Service.SDK;
 using BrowserShell.Runtime;
 
 namespace BrowserShell.Runtime.Tests;
