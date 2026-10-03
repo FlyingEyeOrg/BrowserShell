@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Version>2.0.0</Version>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>BrowserShell</PackageId>
+    <AssemblyName>BrowserShell</AssemblyName>
+    <RootNamespace>BrowserShell</RootNamespace>
+    <Description>BrowserShell desktop window SDK: configuration, launcher and bundled Windows runtime.</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- 生命周期重载按有/无强类型委托明确区分；保留默认 CancellationToken 的调用体验。 -->
+    <NoWarn>$(NoWarn);RS0026</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers"
+                      PrivateAssets="all"
+                      IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+    <None Update="README.md" Pack="true" PackagePath="" />
+    <None Include="buildTransitive\BrowserShell.targets" Pack="true" PackagePath="buildTransitive\" />
+    <None Include="tools\win-x86\**\*" Pack="true" PackagePath="tools\win-x86\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('tools\win-x86\BrowserShell.Runtime.exe')" />
+    <None Include="tools\win-x64\**\*" Pack="true" PackagePath="tools\win-x64\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('tools\win-x64\BrowserShell.Runtime.exe')" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
+    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="BrowserShell.Runtime" />
+    <InternalsVisibleTo Include="BrowserShell.Runtime.Tests" />
+  </ItemGroup>
+</Project>

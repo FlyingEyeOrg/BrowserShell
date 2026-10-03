@@ -1,0 +1,681 @@
+#nullable enable
+abstract BrowserShell.WindowLifecycleContext.<Clone>$() -> BrowserShell.WindowLifecycleContext!
+const BrowserShell.StandardViews.Choice = "softwarehub.standard-choice" -> string!
+const BrowserShell.StandardViews.ChoicePath = "/_softwarehub/sdk/standard-choice.html" -> string!
+const BrowserShell.StandardViews.Dialog = "softwarehub.standard-dialog" -> string!
+const BrowserShell.StandardViews.DialogPath = "/_softwarehub/sdk/standard-dialog.html" -> string!
+const BrowserShell.StandardViews.Input = "softwarehub.standard-input" -> string!
+const BrowserShell.StandardViews.InputPath = "/_softwarehub/sdk/standard-input.html" -> string!
+const BrowserShell.StandardViews.Notification = "softwarehub.standard-notification" -> string!
+const BrowserShell.StandardViews.NotificationPath = "/_softwarehub/sdk/standard-notification.html" -> string!
+const BrowserShell.StandardViews.Progress = "softwarehub.standard-progress" -> string!
+const BrowserShell.StandardViews.ProgressPath = "/_softwarehub/sdk/standard-progress.html" -> string!
+override sealed BrowserShell.WindowActionContext.Equals(BrowserShell.WindowLifecycleContext? other) -> bool
+override sealed BrowserShell.WindowClosingContext.Equals(BrowserShell.WindowLifecycleContext? other) -> bool
+override sealed BrowserShell.WindowPresentedContext.Equals(BrowserShell.WindowLifecycleContext? other) -> bool
+override sealed BrowserShell.WindowResolvedContext<TResult>.Equals(BrowserShell.WindowLifecycleContext? other) -> bool
+override sealed BrowserShell.WindowSubmittingContext<TResult>.Equals(BrowserShell.WindowLifecycleContext? other) -> bool
+override BrowserShell.BrowserWindowCloseDecision.Equals(object? obj) -> bool
+override BrowserShell.BrowserWindowCloseDecision.GetHashCode() -> int
+override BrowserShell.BrowserWindowCloseDecision.ToString() -> string!
+override BrowserShell.BrowserWindowClosingContext.Equals(object? obj) -> bool
+override BrowserShell.BrowserWindowClosingContext.GetHashCode() -> int
+override BrowserShell.BrowserWindowClosingContext.ToString() -> string!
+override BrowserShell.DialogResult<TResult>.Equals(object? obj) -> bool
+override BrowserShell.DialogResult<TResult>.GetHashCode() -> int
+override BrowserShell.DialogResult<TResult>.ToString() -> string!
+override BrowserShell.StandardChoiceOption.Equals(object? obj) -> bool
+override BrowserShell.StandardChoiceOption.GetHashCode() -> int
+override BrowserShell.StandardChoiceOption.ToString() -> string!
+override BrowserShell.StandardChoiceRequest.Equals(object? obj) -> bool
+override BrowserShell.StandardChoiceRequest.GetHashCode() -> int
+override BrowserShell.StandardChoiceRequest.ToString() -> string!
+override BrowserShell.StandardChoiceResult.Equals(object? obj) -> bool
+override BrowserShell.StandardChoiceResult.GetHashCode() -> int
+override BrowserShell.StandardChoiceResult.ToString() -> string!
+override BrowserShell.StandardDialogAction.Equals(object? obj) -> bool
+override BrowserShell.StandardDialogAction.GetHashCode() -> int
+override BrowserShell.StandardDialogAction.ToString() -> string!
+override BrowserShell.StandardDialogRequest.Equals(object? obj) -> bool
+override BrowserShell.StandardDialogRequest.GetHashCode() -> int
+override BrowserShell.StandardDialogRequest.ToString() -> string!
+override BrowserShell.StandardInputField.Equals(object? obj) -> bool
+override BrowserShell.StandardInputField.GetHashCode() -> int
+override BrowserShell.StandardInputField.ToString() -> string!
+override BrowserShell.StandardInputRequest.Equals(object? obj) -> bool
+override BrowserShell.StandardInputRequest.GetHashCode() -> int
+override BrowserShell.StandardInputRequest.ToString() -> string!
+override BrowserShell.StandardInputResult.Equals(object? obj) -> bool
+override BrowserShell.StandardInputResult.GetHashCode() -> int
+override BrowserShell.StandardInputResult.ToString() -> string!
+override BrowserShell.StandardNotificationAction.Equals(object? obj) -> bool
+override BrowserShell.StandardNotificationAction.GetHashCode() -> int
+override BrowserShell.StandardNotificationAction.ToString() -> string!
+override BrowserShell.StandardNotificationRequest.Equals(object? obj) -> bool
+override BrowserShell.StandardNotificationRequest.GetHashCode() -> int
+override BrowserShell.StandardNotificationRequest.ToString() -> string!
+override BrowserShell.StandardNotificationResult.Equals(object? obj) -> bool
+override BrowserShell.StandardNotificationResult.GetHashCode() -> int
+override BrowserShell.StandardNotificationResult.ToString() -> string!
+override BrowserShell.StandardProgressRequest.Equals(object? obj) -> bool
+override BrowserShell.StandardProgressRequest.GetHashCode() -> int
+override BrowserShell.StandardProgressRequest.ToString() -> string!
+override BrowserShell.StandardProgressResult.Equals(object? obj) -> bool
+override BrowserShell.StandardProgressResult.GetHashCode() -> int
+override BrowserShell.StandardProgressResult.ToString() -> string!
+override BrowserShell.ViewDefinition.Equals(object? obj) -> bool
+override BrowserShell.ViewDefinition.GetHashCode() -> int
+override BrowserShell.ViewDefinition.ToString() -> string!
+override BrowserShell.WindowActionContext.<Clone>$() -> BrowserShell.WindowActionContext!
+override BrowserShell.WindowActionContext.Equals(object? obj) -> bool
+override BrowserShell.WindowActionContext.GetHashCode() -> int
+override BrowserShell.WindowActionContext.ToString() -> string!
+override BrowserShell.WindowActionResult.Equals(object? obj) -> bool
+override BrowserShell.WindowActionResult.GetHashCode() -> int
+override BrowserShell.WindowActionResult.ToString() -> string!
+override BrowserShell.WindowClosingContext.<Clone>$() -> BrowserShell.WindowClosingContext!
+override BrowserShell.WindowClosingContext.Equals(object? obj) -> bool
+override BrowserShell.WindowClosingContext.GetHashCode() -> int
+override BrowserShell.WindowClosingContext.ToString() -> string!
+override BrowserShell.WindowInteractionDecision.Equals(object? obj) -> bool
+override BrowserShell.WindowInteractionDecision.GetHashCode() -> int
+override BrowserShell.WindowInteractionDecision.ToString() -> string!
+override BrowserShell.WindowLifecycleContext.Equals(object? obj) -> bool
+override BrowserShell.WindowLifecycleContext.GetHashCode() -> int
+override BrowserShell.WindowLifecycleContext.ToString() -> string!
+override BrowserShell.WindowPresentedContext.<Clone>$() -> BrowserShell.WindowPresentedContext!
+override BrowserShell.WindowPresentedContext.Equals(object? obj) -> bool
+override BrowserShell.WindowPresentedContext.GetHashCode() -> int
+override BrowserShell.WindowPresentedContext.ToString() -> string!
+override BrowserShell.WindowResolution.Equals(object? obj) -> bool
+override BrowserShell.WindowResolution.GetHashCode() -> int
+override BrowserShell.WindowResolution.ToString() -> string!
+override BrowserShell.WindowResolvedContext<TResult>.<Clone>$() -> BrowserShell.WindowResolvedContext<TResult>!
+override BrowserShell.WindowResolvedContext<TResult>.Equals(object? obj) -> bool
+override BrowserShell.WindowResolvedContext<TResult>.GetHashCode() -> int
+override BrowserShell.WindowResolvedContext<TResult>.ToString() -> string!
+override BrowserShell.WindowStatus<TResult>.Equals(object? obj) -> bool
+override BrowserShell.WindowStatus<TResult>.GetHashCode() -> int
+override BrowserShell.WindowStatus<TResult>.ToString() -> string!
+override BrowserShell.WindowSubmittingContext<TResult>.<Clone>$() -> BrowserShell.WindowSubmittingContext<TResult>!
+override BrowserShell.WindowSubmittingContext<TResult>.Equals(object? obj) -> bool
+override BrowserShell.WindowSubmittingContext<TResult>.GetHashCode() -> int
+override BrowserShell.WindowSubmittingContext<TResult>.ToString() -> string!
+BrowserShell.BrowserShellConnectionMode
+BrowserShell.BrowserShellConnectionMode.Automatic = 0 -> BrowserShell.BrowserShellConnectionMode
+BrowserShell.BrowserShellConnectionMode.Connect = 2 -> BrowserShell.BrowserShellConnectionMode
+BrowserShell.BrowserShellConnectionMode.Disabled = 3 -> BrowserShell.BrowserShellConnectionMode
+BrowserShell.BrowserShellConnectionMode.Launch = 1 -> BrowserShell.BrowserShellConnectionMode
+BrowserShell.BrowserShellOptions
+BrowserShell.BrowserShellOptions.AgentId.get -> string?
+BrowserShell.BrowserShellOptions.AgentId.set -> void
+BrowserShell.BrowserShellOptions.ClientId.get -> string?
+BrowserShell.BrowserShellOptions.ClientId.set -> void
+BrowserShell.BrowserShellOptions.ClientSecret.get -> string?
+BrowserShell.BrowserShellOptions.ClientSecret.set -> void
+BrowserShell.BrowserShellOptions.BrowserShellOptions() -> void
+BrowserShell.BrowserShellOptions.Endpoint.get -> System.Uri?
+BrowserShell.BrowserShellOptions.Endpoint.set -> void
+BrowserShell.BrowserShellOptions.Mode.get -> BrowserShell.BrowserShellConnectionMode
+BrowserShell.BrowserShellOptions.Mode.set -> void
+BrowserShell.BrowserShellOptions.StartupTimeout.get -> System.TimeSpan
+BrowserShell.BrowserShellOptions.StartupTimeout.set -> void
+BrowserShell.BrowserShellOptions.Views.get -> System.Collections.Generic.Dictionary<string!, BrowserShell.ViewPoolOptions!>!
+BrowserShell.BrowserShellOptions.Views.set -> void
+BrowserShell.BrowserShellOptions.WindowManagement.get -> BrowserShell.WindowManagementOptions!
+BrowserShell.BrowserShellOptions.WindowManagement.set -> void
+BrowserShell.BrowserWindowBootstrapUriFactory
+BrowserShell.BrowserWindowCloseDecision
+BrowserShell.BrowserWindowCloseDecision.<Clone>$() -> BrowserShell.BrowserWindowCloseDecision!
+BrowserShell.BrowserWindowCloseDecision.Accepted.get -> bool
+BrowserShell.BrowserWindowCloseDecision.Accepted.init -> void
+BrowserShell.BrowserWindowCloseDecision.Code.get -> string?
+BrowserShell.BrowserWindowCloseDecision.Code.init -> void
+BrowserShell.BrowserWindowCloseDecision.Deconstruct(out bool Accepted, out string? Code, out string? Message) -> void
+BrowserShell.BrowserWindowCloseDecision.BrowserWindowCloseDecision(bool Accepted, string? Code = null, string? Message = null) -> void
+BrowserShell.BrowserWindowCloseDecision.Equals(BrowserShell.BrowserWindowCloseDecision? other) -> bool
+BrowserShell.BrowserWindowCloseDecision.Message.get -> string?
+BrowserShell.BrowserWindowCloseDecision.Message.init -> void
+BrowserShell.BrowserWindowCloseSource
+BrowserShell.BrowserWindowCloseSource.Page = 1 -> BrowserShell.BrowserWindowCloseSource
+BrowserShell.BrowserWindowCloseSource.WindowChrome = 0 -> BrowserShell.BrowserWindowCloseSource
+BrowserShell.BrowserWindowClosingContext
+BrowserShell.BrowserWindowClosingContext.<Clone>$() -> BrowserShell.BrowserWindowClosingContext!
+BrowserShell.BrowserWindowClosingContext.Deconstruct(out string! WindowId, out System.Uri! Url, out BrowserShell.BrowserWindowCloseSource Source) -> void
+BrowserShell.BrowserWindowClosingContext.BrowserWindowClosingContext(string! WindowId, System.Uri! Url, BrowserShell.BrowserWindowCloseSource Source) -> void
+BrowserShell.BrowserWindowClosingContext.Equals(BrowserShell.BrowserWindowClosingContext? other) -> bool
+BrowserShell.BrowserWindowClosingContext.Source.get -> BrowserShell.BrowserWindowCloseSource
+BrowserShell.BrowserWindowClosingContext.Source.init -> void
+BrowserShell.BrowserWindowClosingContext.Url.get -> System.Uri!
+BrowserShell.BrowserWindowClosingContext.Url.init -> void
+BrowserShell.BrowserWindowClosingContext.WindowId.get -> string!
+BrowserShell.BrowserWindowClosingContext.WindowId.init -> void
+BrowserShell.BrowserWindowHandle
+BrowserShell.BrowserWindowHandle.ActivateAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.CloseAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.HideAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.LoadUrlAsync(System.Uri! url, System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.MaximizeAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.MinimizeAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.ReloadAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.ReloadFromBootstrapAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.RestoreAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.SetTitleAsync(string! title, System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.ShowAsync(System.Threading.CancellationToken token = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.BrowserWindowHandle.WindowId.get -> string!
+BrowserShell.BrowserWindowLifecycle
+BrowserShell.BrowserWindowLifecycle.ClosedAsync.get -> System.Func<string!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
+BrowserShell.BrowserWindowLifecycle.ClosedAsync.init -> void
+BrowserShell.BrowserWindowLifecycle.ClosingAsync.get -> System.Func<BrowserShell.BrowserWindowClosingContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<BrowserShell.BrowserWindowCloseDecision!>>?
+BrowserShell.BrowserWindowLifecycle.ClosingAsync.init -> void
+BrowserShell.BrowserWindowLifecycle.BrowserWindowLifecycle() -> void
+BrowserShell.BrowserWindowOptions
+BrowserShell.BrowserWindowOptions.AllowedOrigins.get -> System.Collections.Generic.IReadOnlyList<string!>!
+BrowserShell.BrowserWindowOptions.AllowedOrigins.init -> void
+BrowserShell.BrowserWindowOptions.BootstrapUriFactory.get -> BrowserShell.BrowserWindowBootstrapUriFactory?
+BrowserShell.BrowserWindowOptions.BootstrapUriFactory.init -> void
+BrowserShell.BrowserWindowOptions.Center.get -> bool
+BrowserShell.BrowserWindowOptions.Center.init -> void
+BrowserShell.BrowserWindowOptions.BrowserWindowOptions() -> void
+BrowserShell.BrowserWindowOptions.Focus.get -> bool
+BrowserShell.BrowserWindowOptions.Focus.init -> void
+BrowserShell.BrowserWindowOptions.Height.get -> int?
+BrowserShell.BrowserWindowOptions.Height.init -> void
+BrowserShell.BrowserWindowOptions.MinHeight.get -> int?
+BrowserShell.BrowserWindowOptions.MinHeight.init -> void
+BrowserShell.BrowserWindowOptions.MinWidth.get -> int?
+BrowserShell.BrowserWindowOptions.MinWidth.init -> void
+BrowserShell.BrowserWindowOptions.OwnerWindowId.get -> string?
+BrowserShell.BrowserWindowOptions.OwnerWindowId.init -> void
+BrowserShell.BrowserWindowOptions.Title.get -> string?
+BrowserShell.BrowserWindowOptions.Title.init -> void
+BrowserShell.BrowserWindowOptions.Topmost.get -> bool
+BrowserShell.BrowserWindowOptions.Topmost.init -> void
+BrowserShell.BrowserWindowOptions.Url.get -> System.Uri!
+BrowserShell.BrowserWindowOptions.Url.init -> void
+BrowserShell.BrowserWindowOptions.Width.get -> int?
+BrowserShell.BrowserWindowOptions.Width.init -> void
+BrowserShell.DialogResult<TResult>
+BrowserShell.DialogResult<TResult>.<Clone>$() -> BrowserShell.DialogResult<TResult>!
+BrowserShell.DialogResult<TResult>.Action.get -> string?
+BrowserShell.DialogResult<TResult>.Action.init -> void
+BrowserShell.DialogResult<TResult>.Deconstruct(out BrowserShell.WindowEndState EndState, out string? Action, out TResult? Result) -> void
+BrowserShell.DialogResult<TResult>.DialogResult(BrowserShell.WindowEndState EndState, string? Action, TResult? Result) -> void
+BrowserShell.DialogResult<TResult>.EndState.get -> BrowserShell.WindowEndState
+BrowserShell.DialogResult<TResult>.EndState.init -> void
+BrowserShell.DialogResult<TResult>.Equals(BrowserShell.DialogResult<TResult>? other) -> bool
+BrowserShell.DialogResult<TResult>.Result.get -> TResult?
+BrowserShell.DialogResult<TResult>.Result.init -> void
+BrowserShell.StandardChoiceExtensions
+BrowserShell.StandardChoiceMode
+BrowserShell.StandardChoiceMode.MultipleSelection = 1 -> BrowserShell.StandardChoiceMode
+BrowserShell.StandardChoiceMode.SingleSelection = 0 -> BrowserShell.StandardChoiceMode
+BrowserShell.StandardChoiceOption
+BrowserShell.StandardChoiceOption.<Clone>$() -> BrowserShell.StandardChoiceOption!
+BrowserShell.StandardChoiceOption.Deconstruct(out string! Key, out string! Text, out string? Description, out bool Disabled, out bool Selected) -> void
+BrowserShell.StandardChoiceOption.Description.get -> string?
+BrowserShell.StandardChoiceOption.Description.init -> void
+BrowserShell.StandardChoiceOption.StandardChoiceOption(string! Key, string! Text, string? Description = null, bool Disabled = false, bool Selected = false) -> void
+BrowserShell.StandardChoiceOption.Disabled.get -> bool
+BrowserShell.StandardChoiceOption.Disabled.init -> void
+BrowserShell.StandardChoiceOption.Equals(BrowserShell.StandardChoiceOption? other) -> bool
+BrowserShell.StandardChoiceOption.Key.get -> string!
+BrowserShell.StandardChoiceOption.Key.init -> void
+BrowserShell.StandardChoiceOption.Selected.get -> bool
+BrowserShell.StandardChoiceOption.Selected.init -> void
+BrowserShell.StandardChoiceOption.Text.get -> string!
+BrowserShell.StandardChoiceOption.Text.init -> void
+BrowserShell.StandardChoiceRequest
+BrowserShell.StandardChoiceRequest.<Clone>$() -> BrowserShell.StandardChoiceRequest!
+BrowserShell.StandardChoiceRequest.CancelText.get -> string!
+BrowserShell.StandardChoiceRequest.CancelText.init -> void
+BrowserShell.StandardChoiceRequest.Deconstruct(out string! Title, out string? Description, out BrowserShell.StandardChoiceMode Mode, out System.Collections.Generic.IReadOnlyList<BrowserShell.StandardChoiceOption!>! Options, out int MinimumSelections, out int? MaximumSelections, out string! SubmitText, out string! CancelText) -> void
+BrowserShell.StandardChoiceRequest.Description.get -> string?
+BrowserShell.StandardChoiceRequest.Description.init -> void
+BrowserShell.StandardChoiceRequest.StandardChoiceRequest(string! Title, string? Description, BrowserShell.StandardChoiceMode Mode, System.Collections.Generic.IReadOnlyList<BrowserShell.StandardChoiceOption!>! Options, int MinimumSelections = 1, int? MaximumSelections = null, string! SubmitText = "确定", string! CancelText = "取消") -> void
+BrowserShell.StandardChoiceRequest.Equals(BrowserShell.StandardChoiceRequest? other) -> bool
+BrowserShell.StandardChoiceRequest.MaximumSelections.get -> int?
+BrowserShell.StandardChoiceRequest.MaximumSelections.init -> void
+BrowserShell.StandardChoiceRequest.MinimumSelections.get -> int
+BrowserShell.StandardChoiceRequest.MinimumSelections.init -> void
+BrowserShell.StandardChoiceRequest.Mode.get -> BrowserShell.StandardChoiceMode
+BrowserShell.StandardChoiceRequest.Mode.init -> void
+BrowserShell.StandardChoiceRequest.Options.get -> System.Collections.Generic.IReadOnlyList<BrowserShell.StandardChoiceOption!>!
+BrowserShell.StandardChoiceRequest.Options.init -> void
+BrowserShell.StandardChoiceRequest.SubmitText.get -> string!
+BrowserShell.StandardChoiceRequest.SubmitText.init -> void
+BrowserShell.StandardChoiceRequest.Title.get -> string!
+BrowserShell.StandardChoiceRequest.Title.init -> void
+BrowserShell.StandardChoiceResult
+BrowserShell.StandardChoiceResult.<Clone>$() -> BrowserShell.StandardChoiceResult!
+BrowserShell.StandardChoiceResult.Deconstruct(out System.Collections.Generic.IReadOnlyList<string!>! Keys) -> void
+BrowserShell.StandardChoiceResult.StandardChoiceResult(System.Collections.Generic.IReadOnlyList<string!>! Keys) -> void
+BrowserShell.StandardChoiceResult.Equals(BrowserShell.StandardChoiceResult? other) -> bool
+BrowserShell.StandardChoiceResult.Keys.get -> System.Collections.Generic.IReadOnlyList<string!>!
+BrowserShell.StandardChoiceResult.Keys.init -> void
+BrowserShell.StandardDialogAction
+BrowserShell.StandardDialogAction.<Clone>$() -> BrowserShell.StandardDialogAction!
+BrowserShell.StandardDialogAction.Deconstruct(out string! Name, out string! Text, out bool Primary, out System.Text.Json.JsonElement? Value, out bool IsCancel, out bool IsDanger) -> void
+BrowserShell.StandardDialogAction.StandardDialogAction(string! Name, string! Text, bool Primary = false, System.Text.Json.JsonElement? Value = null, bool IsCancel = false, bool IsDanger = false) -> void
+BrowserShell.StandardDialogAction.Equals(BrowserShell.StandardDialogAction? other) -> bool
+BrowserShell.StandardDialogAction.IsCancel.get -> bool
+BrowserShell.StandardDialogAction.IsCancel.init -> void
+BrowserShell.StandardDialogAction.IsDanger.get -> bool
+BrowserShell.StandardDialogAction.IsDanger.init -> void
+BrowserShell.StandardDialogAction.Name.get -> string!
+BrowserShell.StandardDialogAction.Name.init -> void
+BrowserShell.StandardDialogAction.Primary.get -> bool
+BrowserShell.StandardDialogAction.Primary.init -> void
+BrowserShell.StandardDialogAction.Text.get -> string!
+BrowserShell.StandardDialogAction.Text.init -> void
+BrowserShell.StandardDialogAction.Value.get -> System.Text.Json.JsonElement?
+BrowserShell.StandardDialogAction.Value.init -> void
+BrowserShell.StandardDialogExtensions
+BrowserShell.StandardDialogRequest
+BrowserShell.StandardDialogRequest.<Clone>$() -> BrowserShell.StandardDialogRequest!
+BrowserShell.StandardDialogRequest.Actions.get -> System.Collections.Generic.IReadOnlyList<BrowserShell.StandardDialogAction!>!
+BrowserShell.StandardDialogRequest.Actions.init -> void
+BrowserShell.StandardDialogRequest.AllowClose.get -> bool
+BrowserShell.StandardDialogRequest.AllowClose.init -> void
+BrowserShell.StandardDialogRequest.Deconstruct(out string! Message, out System.Collections.Generic.IReadOnlyList<BrowserShell.StandardDialogAction!>! Actions, out string? Title, out string? Details, out BrowserShell.StandardSeverity Severity, out bool AllowClose) -> void
+BrowserShell.StandardDialogRequest.StandardDialogRequest(string! Message, System.Collections.Generic.IReadOnlyList<BrowserShell.StandardDialogAction!>! Actions, string? Title = null, string? Details = null, BrowserShell.StandardSeverity Severity = BrowserShell.StandardSeverity.Information, bool AllowClose = true) -> void
+BrowserShell.StandardDialogRequest.Details.get -> string?
+BrowserShell.StandardDialogRequest.Details.init -> void
+BrowserShell.StandardDialogRequest.Equals(BrowserShell.StandardDialogRequest? other) -> bool
+BrowserShell.StandardDialogRequest.Message.get -> string!
+BrowserShell.StandardDialogRequest.Message.init -> void
+BrowserShell.StandardDialogRequest.Severity.get -> BrowserShell.StandardSeverity
+BrowserShell.StandardDialogRequest.Severity.init -> void
+BrowserShell.StandardDialogRequest.Title.get -> string?
+BrowserShell.StandardDialogRequest.Title.init -> void
+BrowserShell.StandardInputExtensions
+BrowserShell.StandardInputField
+BrowserShell.StandardInputField.<Clone>$() -> BrowserShell.StandardInputField!
+BrowserShell.StandardInputField.Deconstruct(out string! Key, out string! Label, out BrowserShell.StandardInputType Type, out string? InitialValue, out string? Placeholder, out bool Required, out int? MaxLength, out decimal? Minimum, out decimal? Maximum) -> void
+BrowserShell.StandardInputField.StandardInputField(string! Key, string! Label, BrowserShell.StandardInputType Type = BrowserShell.StandardInputType.Text, string? InitialValue = null, string? Placeholder = null, bool Required = false, int? MaxLength = null, decimal? Minimum = null, decimal? Maximum = null) -> void
+BrowserShell.StandardInputField.Equals(BrowserShell.StandardInputField? other) -> bool
+BrowserShell.StandardInputField.InitialValue.get -> string?
+BrowserShell.StandardInputField.InitialValue.init -> void
+BrowserShell.StandardInputField.Key.get -> string!
+BrowserShell.StandardInputField.Key.init -> void
+BrowserShell.StandardInputField.Label.get -> string!
+BrowserShell.StandardInputField.Label.init -> void
+BrowserShell.StandardInputField.Maximum.get -> decimal?
+BrowserShell.StandardInputField.Maximum.init -> void
+BrowserShell.StandardInputField.MaxLength.get -> int?
+BrowserShell.StandardInputField.MaxLength.init -> void
+BrowserShell.StandardInputField.Minimum.get -> decimal?
+BrowserShell.StandardInputField.Minimum.init -> void
+BrowserShell.StandardInputField.Placeholder.get -> string?
+BrowserShell.StandardInputField.Placeholder.init -> void
+BrowserShell.StandardInputField.Required.get -> bool
+BrowserShell.StandardInputField.Required.init -> void
+BrowserShell.StandardInputField.Type.get -> BrowserShell.StandardInputType
+BrowserShell.StandardInputField.Type.init -> void
+BrowserShell.StandardInputRequest
+BrowserShell.StandardInputRequest.<Clone>$() -> BrowserShell.StandardInputRequest!
+BrowserShell.StandardInputRequest.CancelText.get -> string!
+BrowserShell.StandardInputRequest.CancelText.init -> void
+BrowserShell.StandardInputRequest.Deconstruct(out string! Title, out string? Description, out System.Collections.Generic.IReadOnlyList<BrowserShell.StandardInputField!>! Fields, out string! SubmitText, out string! CancelText) -> void
+BrowserShell.StandardInputRequest.Description.get -> string?
+BrowserShell.StandardInputRequest.Description.init -> void
+BrowserShell.StandardInputRequest.StandardInputRequest(string! Title, string? Description, System.Collections.Generic.IReadOnlyList<BrowserShell.StandardInputField!>! Fields, string! SubmitText = "确定", string! CancelText = "取消") -> void
+BrowserShell.StandardInputRequest.Equals(BrowserShell.StandardInputRequest? other) -> bool
+BrowserShell.StandardInputRequest.Fields.get -> System.Collections.Generic.IReadOnlyList<BrowserShell.StandardInputField!>!
+BrowserShell.StandardInputRequest.Fields.init -> void
+BrowserShell.StandardInputRequest.SubmitText.get -> string!
+BrowserShell.StandardInputRequest.SubmitText.init -> void
+BrowserShell.StandardInputRequest.Title.get -> string!
+BrowserShell.StandardInputRequest.Title.init -> void
+BrowserShell.StandardInputResult
+BrowserShell.StandardInputResult.<Clone>$() -> BrowserShell.StandardInputResult!
+BrowserShell.StandardInputResult.Deconstruct(out System.Collections.Generic.IReadOnlyDictionary<string!, string?>! Values) -> void
+BrowserShell.StandardInputResult.StandardInputResult(System.Collections.Generic.IReadOnlyDictionary<string!, string?>! Values) -> void
+BrowserShell.StandardInputResult.Equals(BrowserShell.StandardInputResult? other) -> bool
+BrowserShell.StandardInputResult.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string?>!
+BrowserShell.StandardInputResult.Values.init -> void
+BrowserShell.StandardInputType
+BrowserShell.StandardInputType.MultilineText = 1 -> BrowserShell.StandardInputType
+BrowserShell.StandardInputType.Number = 2 -> BrowserShell.StandardInputType
+BrowserShell.StandardInputType.Text = 0 -> BrowserShell.StandardInputType
+BrowserShell.StandardNotificationAction
+BrowserShell.StandardNotificationAction.<Clone>$() -> BrowserShell.StandardNotificationAction!
+BrowserShell.StandardNotificationAction.Deconstruct(out string! Name, out string! Text) -> void
+BrowserShell.StandardNotificationAction.StandardNotificationAction(string! Name, string! Text) -> void
+BrowserShell.StandardNotificationAction.Equals(BrowserShell.StandardNotificationAction? other) -> bool
+BrowserShell.StandardNotificationAction.Name.get -> string!
+BrowserShell.StandardNotificationAction.Name.init -> void
+BrowserShell.StandardNotificationAction.Text.get -> string!
+BrowserShell.StandardNotificationAction.Text.init -> void
+BrowserShell.StandardNotificationExtensions
+BrowserShell.StandardNotificationRequest
+BrowserShell.StandardNotificationRequest.<Clone>$() -> BrowserShell.StandardNotificationRequest!
+BrowserShell.StandardNotificationRequest.Actions.get -> System.Collections.Generic.IReadOnlyList<BrowserShell.StandardNotificationAction!>?
+BrowserShell.StandardNotificationRequest.Actions.init -> void
+BrowserShell.StandardNotificationRequest.AutoCloseAfter.get -> System.TimeSpan?
+BrowserShell.StandardNotificationRequest.AutoCloseAfter.init -> void
+BrowserShell.StandardNotificationRequest.Deconstruct(out string! Title, out string! Message, out BrowserShell.StandardSeverity Severity, out System.TimeSpan? AutoCloseAfter, out System.Collections.Generic.IReadOnlyList<BrowserShell.StandardNotificationAction!>? Actions) -> void
+BrowserShell.StandardNotificationRequest.StandardNotificationRequest(string! Title, string! Message, BrowserShell.StandardSeverity Severity = BrowserShell.StandardSeverity.Information, System.TimeSpan? AutoCloseAfter = null, System.Collections.Generic.IReadOnlyList<BrowserShell.StandardNotificationAction!>? Actions = null) -> void
+BrowserShell.StandardNotificationRequest.Equals(BrowserShell.StandardNotificationRequest? other) -> bool
+BrowserShell.StandardNotificationRequest.Message.get -> string!
+BrowserShell.StandardNotificationRequest.Message.init -> void
+BrowserShell.StandardNotificationRequest.Severity.get -> BrowserShell.StandardSeverity
+BrowserShell.StandardNotificationRequest.Severity.init -> void
+BrowserShell.StandardNotificationRequest.Title.get -> string!
+BrowserShell.StandardNotificationRequest.Title.init -> void
+BrowserShell.StandardNotificationResult
+BrowserShell.StandardNotificationResult.<Clone>$() -> BrowserShell.StandardNotificationResult!
+BrowserShell.StandardNotificationResult.Action.get -> string?
+BrowserShell.StandardNotificationResult.Action.init -> void
+BrowserShell.StandardNotificationResult.Deconstruct(out string? Action, out bool TimedOut) -> void
+BrowserShell.StandardNotificationResult.StandardNotificationResult(string? Action, bool TimedOut) -> void
+BrowserShell.StandardNotificationResult.Equals(BrowserShell.StandardNotificationResult? other) -> bool
+BrowserShell.StandardNotificationResult.TimedOut.get -> bool
+BrowserShell.StandardNotificationResult.TimedOut.init -> void
+BrowserShell.StandardProgressExtensions
+BrowserShell.StandardProgressRequest
+BrowserShell.StandardProgressRequest.<Clone>$() -> BrowserShell.StandardProgressRequest!
+BrowserShell.StandardProgressRequest.CancelText.get -> string!
+BrowserShell.StandardProgressRequest.CancelText.init -> void
+BrowserShell.StandardProgressRequest.CanRequestCancellation.get -> bool
+BrowserShell.StandardProgressRequest.CanRequestCancellation.init -> void
+BrowserShell.StandardProgressRequest.Deconstruct(out string! Title, out string? Message, out bool Indeterminate, out int? Percent, out string? Stage, out string? Details, out bool CanRequestCancellation, out string! CancelText) -> void
+BrowserShell.StandardProgressRequest.StandardProgressRequest(string! Title, string? Message = null, bool Indeterminate = true, int? Percent = null, string? Stage = null, string? Details = null, bool CanRequestCancellation = false, string! CancelText = "取消任务") -> void
+BrowserShell.StandardProgressRequest.Details.get -> string?
+BrowserShell.StandardProgressRequest.Details.init -> void
+BrowserShell.StandardProgressRequest.Equals(BrowserShell.StandardProgressRequest? other) -> bool
+BrowserShell.StandardProgressRequest.Indeterminate.get -> bool
+BrowserShell.StandardProgressRequest.Indeterminate.init -> void
+BrowserShell.StandardProgressRequest.Message.get -> string?
+BrowserShell.StandardProgressRequest.Message.init -> void
+BrowserShell.StandardProgressRequest.Percent.get -> int?
+BrowserShell.StandardProgressRequest.Percent.init -> void
+BrowserShell.StandardProgressRequest.Stage.get -> string?
+BrowserShell.StandardProgressRequest.Stage.init -> void
+BrowserShell.StandardProgressRequest.Title.get -> string!
+BrowserShell.StandardProgressRequest.Title.init -> void
+BrowserShell.StandardProgressResult
+BrowserShell.StandardProgressResult.<Clone>$() -> BrowserShell.StandardProgressResult!
+BrowserShell.StandardProgressResult.CancellationRequested.get -> bool
+BrowserShell.StandardProgressResult.CancellationRequested.init -> void
+BrowserShell.StandardProgressResult.Deconstruct(out bool CancellationRequested) -> void
+BrowserShell.StandardProgressResult.StandardProgressResult(bool CancellationRequested) -> void
+BrowserShell.StandardProgressResult.Equals(BrowserShell.StandardProgressResult? other) -> bool
+BrowserShell.StandardSeverity
+BrowserShell.StandardSeverity.Error = 3 -> BrowserShell.StandardSeverity
+BrowserShell.StandardSeverity.Information = 0 -> BrowserShell.StandardSeverity
+BrowserShell.StandardSeverity.Success = 1 -> BrowserShell.StandardSeverity
+BrowserShell.StandardSeverity.Warning = 2 -> BrowserShell.StandardSeverity
+BrowserShell.StandardViews
+BrowserShell.ViewDefinition
+BrowserShell.ViewDefinition.<Clone>$() -> BrowserShell.ViewDefinition!
+BrowserShell.ViewDefinition.Deconstruct(out string! Name, out string! Path, out int Version, out int PrewarmWindowCount, out BrowserShell.ViewReuseMode ReuseMode, out string? IconPath) -> void
+BrowserShell.ViewDefinition.ViewDefinition(string! Name, string! Path, int Version, int PrewarmWindowCount, BrowserShell.ViewReuseMode ReuseMode, string? IconPath = null) -> void
+BrowserShell.ViewDefinition.Equals(BrowserShell.ViewDefinition? other) -> bool
+BrowserShell.ViewDefinition.IconPath.get -> string?
+BrowserShell.ViewDefinition.IconPath.init -> void
+BrowserShell.ViewDefinition.Name.get -> string!
+BrowserShell.ViewDefinition.Name.init -> void
+BrowserShell.ViewDefinition.Path.get -> string!
+BrowserShell.ViewDefinition.Path.init -> void
+BrowserShell.ViewDefinition.PrewarmWindowCount.get -> int
+BrowserShell.ViewDefinition.PrewarmWindowCount.init -> void
+BrowserShell.ViewDefinition.ReuseMode.get -> BrowserShell.ViewReuseMode
+BrowserShell.ViewDefinition.ReuseMode.init -> void
+BrowserShell.ViewDefinition.Version.get -> int
+BrowserShell.ViewDefinition.Version.init -> void
+BrowserShell.ViewPoolOptions
+BrowserShell.ViewPoolOptions.ViewPoolOptions() -> void
+BrowserShell.ViewPoolOptions.PrewarmWindowCount.get -> int
+BrowserShell.ViewPoolOptions.PrewarmWindowCount.set -> void
+BrowserShell.ViewPoolOptions.ReuseMode.get -> BrowserShell.ViewReuseMode
+BrowserShell.ViewPoolOptions.ReuseMode.set -> void
+BrowserShell.ViewReuseMode
+BrowserShell.ViewReuseMode.Recreate = 0 -> BrowserShell.ViewReuseMode
+BrowserShell.ViewReuseMode.TrustedReset = 1 -> BrowserShell.ViewReuseMode
+BrowserShell.WindowActionCallback
+BrowserShell.WindowActionContext
+BrowserShell.WindowActionContext.Action.get -> string!
+BrowserShell.WindowActionContext.Action.init -> void
+BrowserShell.WindowActionContext.Data.get -> System.Text.Json.JsonElement?
+BrowserShell.WindowActionContext.Data.init -> void
+BrowserShell.WindowActionContext.Deconstruct(out string! WindowId, out string! ViewName, out long Revision, out System.IServiceProvider! Services, out string! RequestId, out string! Action, out System.Text.Json.JsonElement? Data) -> void
+BrowserShell.WindowActionContext.WindowActionContext(string! WindowId, string! ViewName, long Revision, System.IServiceProvider! Services, string! RequestId, string! Action, System.Text.Json.JsonElement? Data) -> void
+BrowserShell.WindowActionContext.Equals(BrowserShell.WindowActionContext? other) -> bool
+BrowserShell.WindowActionContext.RequestId.get -> string!
+BrowserShell.WindowActionContext.RequestId.init -> void
+BrowserShell.WindowActionResult
+BrowserShell.WindowActionResult.<Clone>$() -> BrowserShell.WindowActionResult!
+BrowserShell.WindowActionResult.Accepted.get -> bool
+BrowserShell.WindowActionResult.Accepted.init -> void
+BrowserShell.WindowActionResult.Code.get -> string?
+BrowserShell.WindowActionResult.Code.init -> void
+BrowserShell.WindowActionResult.Data.get -> object?
+BrowserShell.WindowActionResult.Data.init -> void
+BrowserShell.WindowActionResult.Deconstruct(out bool Accepted, out object? Result, out string? Code, out string? Message, out object? Data) -> void
+BrowserShell.WindowActionResult.WindowActionResult(bool Accepted, object? Result = null, string? Code = null, string? Message = null, object? Data = null) -> void
+BrowserShell.WindowActionResult.Equals(BrowserShell.WindowActionResult? other) -> bool
+BrowserShell.WindowActionResult.Message.get -> string?
+BrowserShell.WindowActionResult.Message.init -> void
+BrowserShell.WindowActionResult.Result.get -> object?
+BrowserShell.WindowActionResult.Result.init -> void
+BrowserShell.WindowCloseSource
+BrowserShell.WindowCloseSource.Escape = 1 -> BrowserShell.WindowCloseSource
+BrowserShell.WindowCloseSource.Page = 2 -> BrowserShell.WindowCloseSource
+BrowserShell.WindowCloseSource.WindowChrome = 0 -> BrowserShell.WindowCloseSource
+BrowserShell.WindowClosingCallback
+BrowserShell.WindowClosingContext
+BrowserShell.WindowClosingContext.Action.get -> string?
+BrowserShell.WindowClosingContext.Action.init -> void
+BrowserShell.WindowClosingContext.Deconstruct(out string! WindowId, out string! ViewName, out long Revision, out System.IServiceProvider! Services, out BrowserShell.WindowCloseSource Source, out string? Action) -> void
+BrowserShell.WindowClosingContext.WindowClosingContext(string! WindowId, string! ViewName, long Revision, System.IServiceProvider! Services, BrowserShell.WindowCloseSource Source, string? Action) -> void
+BrowserShell.WindowClosingContext.Equals(BrowserShell.WindowClosingContext? other) -> bool
+BrowserShell.WindowClosingContext.Source.get -> BrowserShell.WindowCloseSource
+BrowserShell.WindowClosingContext.Source.init -> void
+BrowserShell.WindowEndState
+BrowserShell.WindowEndState.Closed = 1 -> BrowserShell.WindowEndState
+BrowserShell.WindowEndState.Completed = 0 -> BrowserShell.WindowEndState
+BrowserShell.WindowHandle
+BrowserShell.WindowHandle.ActivateAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.WindowHandle.CloseAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.WindowHandle.UpdateAsync(object? data, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+BrowserShell.WindowHandle.WaitForCloseAsync<TResult>(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<TResult>!>!
+BrowserShell.WindowHandle.WindowId.get -> string!
+BrowserShell.WindowInteractionDecision
+BrowserShell.WindowInteractionDecision.<Clone>$() -> BrowserShell.WindowInteractionDecision!
+BrowserShell.WindowInteractionDecision.Accepted.get -> bool
+BrowserShell.WindowInteractionDecision.Accepted.init -> void
+BrowserShell.WindowInteractionDecision.Code.get -> string?
+BrowserShell.WindowInteractionDecision.Code.init -> void
+BrowserShell.WindowInteractionDecision.Data.get -> object?
+BrowserShell.WindowInteractionDecision.Data.init -> void
+BrowserShell.WindowInteractionDecision.Deconstruct(out bool Accepted, out string? Code, out string? Message, out object? Data) -> void
+BrowserShell.WindowInteractionDecision.WindowInteractionDecision(bool Accepted, string? Code = null, string? Message = null, object? Data = null) -> void
+BrowserShell.WindowInteractionDecision.Equals(BrowserShell.WindowInteractionDecision? other) -> bool
+BrowserShell.WindowInteractionDecision.Message.get -> string?
+BrowserShell.WindowInteractionDecision.Message.init -> void
+BrowserShell.WindowLifecycle<TResult>
+BrowserShell.WindowLifecycle<TResult>.ActionAsync.get -> BrowserShell.WindowActionCallback?
+BrowserShell.WindowLifecycle<TResult>.ActionAsync.init -> void
+BrowserShell.WindowLifecycle<TResult>.ClosingAsync.get -> BrowserShell.WindowClosingCallback?
+BrowserShell.WindowLifecycle<TResult>.ClosingAsync.init -> void
+BrowserShell.WindowLifecycle<TResult>.WindowLifecycle() -> void
+BrowserShell.WindowLifecycle<TResult>.PresentedAsync.get -> BrowserShell.WindowPresentedCallback?
+BrowserShell.WindowLifecycle<TResult>.PresentedAsync.init -> void
+BrowserShell.WindowLifecycle<TResult>.ResolvedAsync.get -> System.Func<BrowserShell.WindowResolvedContext<TResult>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
+BrowserShell.WindowLifecycle<TResult>.ResolvedAsync.init -> void
+BrowserShell.WindowLifecycle<TResult>.SubmittingAsync.get -> System.Func<BrowserShell.WindowSubmittingContext<TResult>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<BrowserShell.WindowInteractionDecision!>>?
+BrowserShell.WindowLifecycle<TResult>.SubmittingAsync.init -> void
+BrowserShell.WindowLifecycleContext
+BrowserShell.WindowLifecycleContext.Deconstruct(out string! WindowId, out string! ViewName, out long Revision, out System.IServiceProvider! Services) -> void
+BrowserShell.WindowLifecycleContext.WindowLifecycleContext(BrowserShell.WindowLifecycleContext! original) -> void
+BrowserShell.WindowLifecycleContext.WindowLifecycleContext(string! WindowId, string! ViewName, long Revision, System.IServiceProvider! Services) -> void
+BrowserShell.WindowLifecycleContext.Revision.get -> long
+BrowserShell.WindowLifecycleContext.Revision.init -> void
+BrowserShell.WindowLifecycleContext.Services.get -> System.IServiceProvider!
+BrowserShell.WindowLifecycleContext.Services.init -> void
+BrowserShell.WindowLifecycleContext.ViewName.get -> string!
+BrowserShell.WindowLifecycleContext.ViewName.init -> void
+BrowserShell.WindowLifecycleContext.WindowId.get -> string!
+BrowserShell.WindowLifecycleContext.WindowId.init -> void
+BrowserShell.WindowManagementOptions
+BrowserShell.WindowManagementOptions.WindowManagementOptions() -> void
+BrowserShell.WindowManagementOptions.EnableStandardWindow.get -> bool
+BrowserShell.WindowManagementOptions.EnableStandardWindow.set -> void
+BrowserShell.WindowManagementOptions.MaxVisibleWindowCount.get -> int
+BrowserShell.WindowManagementOptions.MaxVisibleWindowCount.set -> void
+BrowserShell.WindowOptions
+BrowserShell.WindowOptions.WindowOptions() -> void
+BrowserShell.WindowOptions.Flash.get -> bool
+BrowserShell.WindowOptions.Flash.init -> void
+BrowserShell.WindowOptions.Focus.get -> bool
+BrowserShell.WindowOptions.Focus.init -> void
+BrowserShell.WindowOptions.Height.get -> int?
+BrowserShell.WindowOptions.Height.init -> void
+BrowserShell.WindowOptions.OwnerWindowId.get -> string?
+BrowserShell.WindowOptions.OwnerWindowId.set -> void
+BrowserShell.WindowOptions.Title.get -> string?
+BrowserShell.WindowOptions.Title.init -> void
+BrowserShell.WindowOptions.Topmost.get -> bool
+BrowserShell.WindowOptions.Topmost.init -> void
+BrowserShell.WindowOptions.Width.get -> int?
+BrowserShell.WindowOptions.Width.init -> void
+BrowserShell.WindowPresentedCallback
+BrowserShell.WindowPresentedContext
+BrowserShell.WindowPresentedContext.Deconstruct(out string! WindowId, out string! ViewName, out long Revision, out System.IServiceProvider! Services, out System.DateTimeOffset PresentedAt) -> void
+BrowserShell.WindowPresentedContext.WindowPresentedContext(string! WindowId, string! ViewName, long Revision, System.IServiceProvider! Services, System.DateTimeOffset PresentedAt) -> void
+BrowserShell.WindowPresentedContext.Equals(BrowserShell.WindowPresentedContext? other) -> bool
+BrowserShell.WindowPresentedContext.PresentedAt.get -> System.DateTimeOffset
+BrowserShell.WindowPresentedContext.PresentedAt.init -> void
+BrowserShell.WindowResolution
+BrowserShell.WindowResolution.<Clone>$() -> BrowserShell.WindowResolution!
+BrowserShell.WindowResolution.Action.get -> string?
+BrowserShell.WindowResolution.Action.init -> void
+BrowserShell.WindowResolution.Deconstruct(out string! WindowId, out string! Status, out string? Action, out System.Text.Json.JsonElement? Result) -> void
+BrowserShell.WindowResolution.WindowResolution(string! WindowId, string! Status, string? Action, System.Text.Json.JsonElement? Result) -> void
+BrowserShell.WindowResolution.Equals(BrowserShell.WindowResolution? other) -> bool
+BrowserShell.WindowResolution.Result.get -> System.Text.Json.JsonElement?
+BrowserShell.WindowResolution.Result.init -> void
+BrowserShell.WindowResolution.Status.get -> string!
+BrowserShell.WindowResolution.Status.init -> void
+BrowserShell.WindowResolution.WindowId.get -> string!
+BrowserShell.WindowResolution.WindowId.init -> void
+BrowserShell.WindowResolvedContext<TResult>
+BrowserShell.WindowResolvedContext<TResult>.Action.get -> string?
+BrowserShell.WindowResolvedContext<TResult>.Action.init -> void
+BrowserShell.WindowResolvedContext<TResult>.Deconstruct(out string! WindowId, out string! ViewName, out long Revision, out System.IServiceProvider! Services, out BrowserShell.WindowEndState EndState, out string? Action, out TResult? Result) -> void
+BrowserShell.WindowResolvedContext<TResult>.WindowResolvedContext(string! WindowId, string! ViewName, long Revision, System.IServiceProvider! Services, BrowserShell.WindowEndState EndState, string? Action, TResult? Result) -> void
+BrowserShell.WindowResolvedContext<TResult>.EndState.get -> BrowserShell.WindowEndState
+BrowserShell.WindowResolvedContext<TResult>.EndState.init -> void
+BrowserShell.WindowResolvedContext<TResult>.Equals(BrowserShell.WindowResolvedContext<TResult>? other) -> bool
+BrowserShell.WindowResolvedContext<TResult>.Result.get -> TResult?
+BrowserShell.WindowResolvedContext<TResult>.Result.init -> void
+BrowserShell.WindowStatus<TResult>
+BrowserShell.WindowStatus<TResult>.<Clone>$() -> BrowserShell.WindowStatus<TResult>!
+BrowserShell.WindowStatus<TResult>.Action.get -> string?
+BrowserShell.WindowStatus<TResult>.Action.init -> void
+BrowserShell.WindowStatus<TResult>.Deconstruct(out string! WindowId, out string! Status, out string? Action, out TResult? Result) -> void
+BrowserShell.WindowStatus<TResult>.WindowStatus(string! WindowId, string! Status, string? Action, TResult? Result) -> void
+BrowserShell.WindowStatus<TResult>.Equals(BrowserShell.WindowStatus<TResult>? other) -> bool
+BrowserShell.WindowStatus<TResult>.Result.get -> TResult?
+BrowserShell.WindowStatus<TResult>.Result.init -> void
+BrowserShell.WindowStatus<TResult>.Status.get -> string!
+BrowserShell.WindowStatus<TResult>.Status.init -> void
+BrowserShell.WindowStatus<TResult>.WindowId.get -> string!
+BrowserShell.WindowStatus<TResult>.WindowId.init -> void
+BrowserShell.WindowSubmittingContext<TResult>
+BrowserShell.WindowSubmittingContext<TResult>.Action.get -> string?
+BrowserShell.WindowSubmittingContext<TResult>.Action.init -> void
+BrowserShell.WindowSubmittingContext<TResult>.Deconstruct(out string! WindowId, out string! ViewName, out long Revision, out System.IServiceProvider! Services, out string? Action, out TResult? Result) -> void
+BrowserShell.WindowSubmittingContext<TResult>.WindowSubmittingContext(string! WindowId, string! ViewName, long Revision, System.IServiceProvider! Services, string? Action, TResult? Result) -> void
+BrowserShell.WindowSubmittingContext<TResult>.Equals(BrowserShell.WindowSubmittingContext<TResult>? other) -> bool
+BrowserShell.WindowSubmittingContext<TResult>.Result.get -> TResult?
+BrowserShell.WindowSubmittingContext<TResult>.Result.init -> void
+BrowserShell.IBrowserWindowService
+BrowserShell.IBrowserWindowService.OpenAsync(BrowserShell.BrowserWindowOptions! options, BrowserShell.BrowserWindowLifecycle? lifecycle = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.BrowserWindowHandle!>!
+BrowserShell.IPageWindowService
+BrowserShell.IPageWindowService.GetStatusAsync<TResult>(string! windowId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowStatus<TResult>?>!
+BrowserShell.IPageWindowService.ShowAsync<TData, TResult>(string! viewName, TData data, BrowserShell.WindowOptions? options, BrowserShell.WindowLifecycle<TResult>! lifecycle, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+BrowserShell.IPageWindowService.ShowAsync<TData>(string! viewName, TData data, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+BrowserShell.IPageWindowService.ShowDialogAsync<TData, TResult>(string! viewName, TData data, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<TResult>!>!
+BrowserShell.IPageWindowService.ShowDialogAsync<TData, TResult>(string! viewName, TData data, BrowserShell.WindowOptions? options, BrowserShell.WindowLifecycle<TResult>! lifecycle, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<TResult>!>!
+BrowserShell.IPageWindowService.ShowModalAsync<TData, TResult>(string! viewName, TData data, BrowserShell.WindowOptions? options, BrowserShell.WindowLifecycle<TResult>! lifecycle, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+BrowserShell.IPageWindowService.ShowModalAsync<TData>(string! viewName, TData data, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+BrowserShell.IWindowService
+BrowserShell.IWindowService.BrowserWindows.get -> BrowserShell.IBrowserWindowService!
+BrowserShell.IWindowService.PageWindows.get -> BrowserShell.IPageWindowService!
+static BrowserShell.BrowserWindowCloseDecision.Allow.get -> BrowserShell.BrowserWindowCloseDecision!
+static BrowserShell.BrowserWindowCloseDecision.operator !=(BrowserShell.BrowserWindowCloseDecision? left, BrowserShell.BrowserWindowCloseDecision? right) -> bool
+static BrowserShell.BrowserWindowCloseDecision.operator ==(BrowserShell.BrowserWindowCloseDecision? left, BrowserShell.BrowserWindowCloseDecision? right) -> bool
+static BrowserShell.BrowserWindowCloseDecision.Reject(string! message, string? code = null) -> BrowserShell.BrowserWindowCloseDecision!
+static BrowserShell.BrowserWindowClosingContext.operator !=(BrowserShell.BrowserWindowClosingContext? left, BrowserShell.BrowserWindowClosingContext? right) -> bool
+static BrowserShell.BrowserWindowClosingContext.operator ==(BrowserShell.BrowserWindowClosingContext? left, BrowserShell.BrowserWindowClosingContext? right) -> bool
+static BrowserShell.DialogResult<TResult>.operator !=(BrowserShell.DialogResult<TResult>? left, BrowserShell.DialogResult<TResult>? right) -> bool
+static BrowserShell.DialogResult<TResult>.operator ==(BrowserShell.DialogResult<TResult>? left, BrowserShell.DialogResult<TResult>? right) -> bool
+static BrowserShell.StandardChoiceExtensions.ShowStandardChoiceAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardChoiceRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<BrowserShell.StandardChoiceResult!>!>!
+static BrowserShell.StandardChoiceOption.operator !=(BrowserShell.StandardChoiceOption? left, BrowserShell.StandardChoiceOption? right) -> bool
+static BrowserShell.StandardChoiceOption.operator ==(BrowserShell.StandardChoiceOption? left, BrowserShell.StandardChoiceOption? right) -> bool
+static BrowserShell.StandardChoiceRequest.operator !=(BrowserShell.StandardChoiceRequest? left, BrowserShell.StandardChoiceRequest? right) -> bool
+static BrowserShell.StandardChoiceRequest.operator ==(BrowserShell.StandardChoiceRequest? left, BrowserShell.StandardChoiceRequest? right) -> bool
+static BrowserShell.StandardChoiceResult.operator !=(BrowserShell.StandardChoiceResult? left, BrowserShell.StandardChoiceResult? right) -> bool
+static BrowserShell.StandardChoiceResult.operator ==(BrowserShell.StandardChoiceResult? left, BrowserShell.StandardChoiceResult? right) -> bool
+static BrowserShell.StandardDialogAction.operator !=(BrowserShell.StandardDialogAction? left, BrowserShell.StandardDialogAction? right) -> bool
+static BrowserShell.StandardDialogAction.operator ==(BrowserShell.StandardDialogAction? left, BrowserShell.StandardDialogAction? right) -> bool
+static BrowserShell.StandardDialogExtensions.ShowStandardAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardDialogRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+static BrowserShell.StandardDialogExtensions.ShowStandardDialogAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardDialogRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<System.Text.Json.JsonElement>!>!
+static BrowserShell.StandardDialogExtensions.ShowStandardModalAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardDialogRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+static BrowserShell.StandardDialogRequest.operator !=(BrowserShell.StandardDialogRequest? left, BrowserShell.StandardDialogRequest? right) -> bool
+static BrowserShell.StandardDialogRequest.operator ==(BrowserShell.StandardDialogRequest? left, BrowserShell.StandardDialogRequest? right) -> bool
+static BrowserShell.StandardInputExtensions.ShowStandardInputAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardInputRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<BrowserShell.StandardInputResult!>!>!
+static BrowserShell.StandardInputField.operator !=(BrowserShell.StandardInputField? left, BrowserShell.StandardInputField? right) -> bool
+static BrowserShell.StandardInputField.operator ==(BrowserShell.StandardInputField? left, BrowserShell.StandardInputField? right) -> bool
+static BrowserShell.StandardInputRequest.operator !=(BrowserShell.StandardInputRequest? left, BrowserShell.StandardInputRequest? right) -> bool
+static BrowserShell.StandardInputRequest.operator ==(BrowserShell.StandardInputRequest? left, BrowserShell.StandardInputRequest? right) -> bool
+static BrowserShell.StandardInputResult.operator !=(BrowserShell.StandardInputResult? left, BrowserShell.StandardInputResult? right) -> bool
+static BrowserShell.StandardInputResult.operator ==(BrowserShell.StandardInputResult? left, BrowserShell.StandardInputResult? right) -> bool
+static BrowserShell.StandardNotificationAction.operator !=(BrowserShell.StandardNotificationAction? left, BrowserShell.StandardNotificationAction? right) -> bool
+static BrowserShell.StandardNotificationAction.operator ==(BrowserShell.StandardNotificationAction? left, BrowserShell.StandardNotificationAction? right) -> bool
+static BrowserShell.StandardNotificationExtensions.ShowStandardNotificationAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardNotificationRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.DialogResult<BrowserShell.StandardNotificationResult!>!>!
+static BrowserShell.StandardNotificationRequest.operator !=(BrowserShell.StandardNotificationRequest? left, BrowserShell.StandardNotificationRequest? right) -> bool
+static BrowserShell.StandardNotificationRequest.operator ==(BrowserShell.StandardNotificationRequest? left, BrowserShell.StandardNotificationRequest? right) -> bool
+static BrowserShell.StandardNotificationResult.operator !=(BrowserShell.StandardNotificationResult? left, BrowserShell.StandardNotificationResult? right) -> bool
+static BrowserShell.StandardNotificationResult.operator ==(BrowserShell.StandardNotificationResult? left, BrowserShell.StandardNotificationResult? right) -> bool
+static BrowserShell.StandardProgressExtensions.ShowStandardProgressAsync(this BrowserShell.IPageWindowService! windows, BrowserShell.StandardProgressRequest! request, BrowserShell.WindowOptions? options = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<BrowserShell.WindowHandle!>!
+static BrowserShell.StandardProgressExtensions.UpdateStandardProgressAsync(this BrowserShell.WindowHandle! handle, BrowserShell.StandardProgressRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task!
+static BrowserShell.StandardProgressRequest.operator !=(BrowserShell.StandardProgressRequest? left, BrowserShell.StandardProgressRequest? right) -> bool
+static BrowserShell.StandardProgressRequest.operator ==(BrowserShell.StandardProgressRequest? left, BrowserShell.StandardProgressRequest? right) -> bool
+static BrowserShell.StandardProgressResult.operator !=(BrowserShell.StandardProgressResult? left, BrowserShell.StandardProgressResult? right) -> bool
+static BrowserShell.StandardProgressResult.operator ==(BrowserShell.StandardProgressResult? left, BrowserShell.StandardProgressResult? right) -> bool
+static BrowserShell.ViewDefinition.operator !=(BrowserShell.ViewDefinition? left, BrowserShell.ViewDefinition? right) -> bool
+static BrowserShell.ViewDefinition.operator ==(BrowserShell.ViewDefinition? left, BrowserShell.ViewDefinition? right) -> bool
+static BrowserShell.WindowActionContext.operator !=(BrowserShell.WindowActionContext? left, BrowserShell.WindowActionContext? right) -> bool
+static BrowserShell.WindowActionContext.operator ==(BrowserShell.WindowActionContext? left, BrowserShell.WindowActionContext? right) -> bool
+static BrowserShell.WindowActionResult.operator !=(BrowserShell.WindowActionResult? left, BrowserShell.WindowActionResult? right) -> bool
+static BrowserShell.WindowActionResult.operator ==(BrowserShell.WindowActionResult? left, BrowserShell.WindowActionResult? right) -> bool
+static BrowserShell.WindowActionResult.Reject(string! message, string? code = null, object? data = null) -> BrowserShell.WindowActionResult!
+static BrowserShell.WindowActionResult.Success(object? result = null) -> BrowserShell.WindowActionResult!
+static BrowserShell.WindowClosingContext.operator !=(BrowserShell.WindowClosingContext? left, BrowserShell.WindowClosingContext? right) -> bool
+static BrowserShell.WindowClosingContext.operator ==(BrowserShell.WindowClosingContext? left, BrowserShell.WindowClosingContext? right) -> bool
+static BrowserShell.WindowInteractionDecision.Allow.get -> BrowserShell.WindowInteractionDecision!
+static BrowserShell.WindowInteractionDecision.operator !=(BrowserShell.WindowInteractionDecision? left, BrowserShell.WindowInteractionDecision? right) -> bool
+static BrowserShell.WindowInteractionDecision.operator ==(BrowserShell.WindowInteractionDecision? left, BrowserShell.WindowInteractionDecision? right) -> bool
+static BrowserShell.WindowInteractionDecision.Reject(string! message, string? code = null, object? data = null) -> BrowserShell.WindowInteractionDecision!
+static BrowserShell.WindowLifecycleContext.operator !=(BrowserShell.WindowLifecycleContext? left, BrowserShell.WindowLifecycleContext? right) -> bool
+static BrowserShell.WindowLifecycleContext.operator ==(BrowserShell.WindowLifecycleContext? left, BrowserShell.WindowLifecycleContext? right) -> bool
+static BrowserShell.WindowPresentedContext.operator !=(BrowserShell.WindowPresentedContext? left, BrowserShell.WindowPresentedContext? right) -> bool
+static BrowserShell.WindowPresentedContext.operator ==(BrowserShell.WindowPresentedContext? left, BrowserShell.WindowPresentedContext? right) -> bool
+static BrowserShell.WindowResolution.operator !=(BrowserShell.WindowResolution? left, BrowserShell.WindowResolution? right) -> bool
+static BrowserShell.WindowResolution.operator ==(BrowserShell.WindowResolution? left, BrowserShell.WindowResolution? right) -> bool
+static BrowserShell.WindowResolvedContext<TResult>.operator !=(BrowserShell.WindowResolvedContext<TResult>? left, BrowserShell.WindowResolvedContext<TResult>? right) -> bool
+static BrowserShell.WindowResolvedContext<TResult>.operator ==(BrowserShell.WindowResolvedContext<TResult>? left, BrowserShell.WindowResolvedContext<TResult>? right) -> bool
+static BrowserShell.WindowStatus<TResult>.operator !=(BrowserShell.WindowStatus<TResult>? left, BrowserShell.WindowStatus<TResult>? right) -> bool
+static BrowserShell.WindowStatus<TResult>.operator ==(BrowserShell.WindowStatus<TResult>? left, BrowserShell.WindowStatus<TResult>? right) -> bool
+static BrowserShell.WindowSubmittingContext<TResult>.operator !=(BrowserShell.WindowSubmittingContext<TResult>? left, BrowserShell.WindowSubmittingContext<TResult>? right) -> bool
+static BrowserShell.WindowSubmittingContext<TResult>.operator ==(BrowserShell.WindowSubmittingContext<TResult>? left, BrowserShell.WindowSubmittingContext<TResult>? right) -> bool
+virtual BrowserShell.BrowserWindowBootstrapUriFactory.Invoke(System.Uri! targetUri, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<System.Uri!>
+virtual BrowserShell.WindowActionCallback.Invoke(BrowserShell.WindowActionContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<BrowserShell.WindowActionResult!>
+virtual BrowserShell.WindowClosingCallback.Invoke(BrowserShell.WindowClosingContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask<BrowserShell.WindowInteractionDecision!>
+virtual BrowserShell.WindowLifecycleContext.EqualityContract.get -> System.Type!
+virtual BrowserShell.WindowLifecycleContext.Equals(BrowserShell.WindowLifecycleContext? other) -> bool
+virtual BrowserShell.WindowLifecycleContext.PrintMembers(System.Text.StringBuilder! builder) -> bool
+virtual BrowserShell.WindowPresentedCallback.Invoke(BrowserShell.WindowPresentedContext! context, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.ValueTask

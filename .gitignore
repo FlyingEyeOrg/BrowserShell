@@ -1,0 +1,72 @@
+# === .NET ===
+[Bb]in/
+[Oo]bj/
+.vs/
+TestResults/
+artifacts/
+/.artifacts/
+*.user
+*.suo
+*.userprefs
+*.nupkg
+*.snupkg
+packages/
+
+# === Node / Vue 前端 ===
+node_modules/
+dist/
+dist-ssr/
+*.tsbuildinfo
+src/SoftwareHub.ServiceConsole/out/
+src/SoftwareHub.ServiceConsole/release/
+src/SoftwareHub.DesktopAgent/out/
+src/SoftwareHub.DesktopAgent/release/
+*.local
+.vite/
+
+# === 日志与临时文件 ===
+.tmp/
+tmp/
+temp/
+.codegraph/
+*.log
+*.tmp
+*.temp
+*.cache
+*.bak
+*.old
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+~$*
+#*#
+*.pid
+*.pid.lock
+.cache/
+logs/
+
+# 本地密钥与客户端凭证（禁止入库）
+data/auth-signing.key
+data/auth-clients.json
+data/service-registry.json
+secrets/
+!/src/SoftwareHub.Auth/Secrets/
+!/src/SoftwareHub.Auth/Secrets/**
+*.secret
+
+# === IDE ===
+.idea/
+.vscode/
+*.code-workspace
+
+# === 操作系统 ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === 发布产物 ===
+publish/
+src/SoftwareHub.DesktopAgent/tools/win-x86/
+src/SoftwareHub.DesktopAgent/tools/win-x64/
