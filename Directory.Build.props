@@ -17,7 +17,5 @@
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/FlyingEyeOrg/browser-shell.git</RepositoryUrl>
-    <!-- 允许在非 Windows 主机上交叉编译 net8.0-windows / WPF 目标 -->
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
   </PropertyGroup>
 </Project>

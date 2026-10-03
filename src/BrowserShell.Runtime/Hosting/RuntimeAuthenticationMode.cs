@@ -1,4 +1,4 @@
-namespace BrowserShell.Runtime.Hosting;
+namespace BrowserShell.Runtime;
 
 /// <summary>BrowserShell Runtime 支持的传输认证模式。</summary>
 public enum RuntimeAuthenticationMode

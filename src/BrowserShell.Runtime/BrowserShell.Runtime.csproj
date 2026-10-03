@@ -15,7 +15,7 @@
     <PackageReference Include="Serilog.Formatting.Compact" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
-    <ProjectReference Include="..\BrowserShell\BrowserShell.csproj" />
+    <ProjectReference Include="..\BrowserShell.Service.SDK\BrowserShell.Service.SDK.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\BrowserShell.ico" />
