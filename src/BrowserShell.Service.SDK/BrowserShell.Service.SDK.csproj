@@ -19,9 +19,6 @@
                       PrivateAssets="all"
                       IncludeAssets="runtime; build; native; contentfiles; analyzers" />
     <None Update="README.md" Pack="true" PackagePath="" />
-    <None Include="buildTransitive\BrowserShell.Service.SDK.targets" Pack="true" PackagePath="buildTransitive\" />
-    <None Include="tools\win-x86\**\*" Pack="true" PackagePath="tools\win-x86\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('tools\win-x86\BrowserShell.Runtime.exe')" />
-    <None Include="tools\win-x64\**\*" Pack="true" PackagePath="tools\win-x64\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('tools\win-x64\BrowserShell.Runtime.exe')" />
   </ItemGroup>
   <ItemGroup>
     <AdditionalFiles Include="PublicAPI.Shipped.txt" />

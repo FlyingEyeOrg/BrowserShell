@@ -4,8 +4,8 @@ namespace BrowserShell.WebView.Wpf;
 
 internal sealed class RuntimeSettings
 {
-    public RuntimeAuthenticationMode AuthenticationMode { get; init; } =
-        RuntimeAuthenticationMode.EncryptedNetworkOAuth;
+    public ShellAuthenticationMode AuthenticationMode { get; init; } =
+        ShellAuthenticationMode.EncryptedNetworkOAuth;
     public string AgentId { get; init; } = Guid.NewGuid().ToString("N");
     public string Endpoint { get; init; } = "http://127.0.0.1:0";
     public string AdminClientId { get; init; } = "owner";

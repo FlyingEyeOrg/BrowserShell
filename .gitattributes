@@ -1,0 +1,23 @@
+# 默认按文本处理，由 git 归一化存储
+* text=auto
+
+# C# 生态在 Windows 上以 CRLF 为准
+*.cs      text eol=crlf
+*.xaml    text eol=crlf
+*.csproj  text eol=crlf
+*.props   text eol=crlf
+*.targets text eol=crlf
+*.sln     text eol=crlf
+*.manifest text eol=crlf
+
+# 脚本与文档用 LF
+*.sh      text eol=lf
+*.md      text eol=lf
+*.json    text eol=lf
+*.yml     text eol=lf
+
+# 二进制资源不做换行符转换
+*.ico     binary
+*.png     binary
+*.nupkg   binary
+*.snupkg  binary

@@ -166,7 +166,7 @@ internal sealed partial class BrowserShellHub : Hub
 
     private void RequireAccess(string serviceInstanceId)
     {
-        var auth = AgentHost.ReadAuthContext(Context.User!);
+        var auth = ShellHost.ReadAuthContext(Context.User!);
         if (auth is null || !_authorization.IsAuthorized(auth, serviceInstanceId))
             throw new HubException("当前客户端无权访问此服务实例。");
     }
