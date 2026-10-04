@@ -36,7 +36,7 @@ DPI 处理与工作区约束全部由 [WindowChromeKit](https://www.nuget.org/pa
 - WebView2 的创建、隔离 Profile 与串行初始化
 - 首次导航、同源约束、新窗口处理
 - 页面侧窗口控制桥（`window.browserShell.window.*`）
-- 加载遮罩、模态输入门控
+- 加载遮罩
 - 窗口级命令（显示/隐藏/最小化/最大化/还原/标题）
 
 ```csharp

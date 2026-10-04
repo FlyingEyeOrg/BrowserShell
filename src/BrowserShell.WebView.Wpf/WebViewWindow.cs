@@ -31,7 +31,6 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private readonly CoreWebView2Environment _environment;
     private readonly CoreWebView2ControllerOptions _controllerOptions;
     private readonly WebView2InitializationCoordinator _webViewInitialization;
-    private readonly NativeWindowInputGate _inputGate;
     private readonly Func<WebViewWindowClosingContext, CancellationToken, Task<bool>>? _closingAsync;
     private readonly Func<WebViewWindow, Task>? _openedAsync;
     private readonly Func<WebViewWindow, Task>? _closedAsync;
@@ -68,17 +67,12 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         _closedAsync = options.ClosedAsync;
         _newWindowAsync = options.NewWindowRequestedAsync;
         _allowedOrigins = NormalizeOrigins(options.AllowedOrigins);
-        _inputGate = new NativeWindowInputGate(
-            "WebViewWindow",
-            () => Id,
-            () => new WindowInteropHelper(this).Handle);
         // 原生边框、拖动、Snap、DWM 阴影与工作区约束由 WindowChromeKit 提供。
         DisplayConfigurationChanged += OnDisplayConfigurationChanged;
         ApplyOptions(options);
         Content = _presentationRoot;
         _presentationRoot.Children.Add(_webView);
         _presentationRoot.Children.Add(_initializationSurface);
-        SourceInitialized += (_, _) => _inputGate.Synchronize("SourceInitialized");
         Closing += OnClosing;
         Closed += (_, _) =>
         {
@@ -96,15 +90,6 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
 
     /// <summary>首次导航的失败原因；为 null 表示首次导航成功或未指定地址。</summary>
     public string? LastNavigationError { get; private set; }
-
-    /// <summary>当前直接子模态窗口数量。</summary>
-    public int ModalReferenceCount => _inputGate.ModalReferenceCount;
-
-    /// <summary>阻止该窗口接收输入，用于承载模态子窗口。</summary>
-    public void BlockForModalChild() => _inputGate.AddModalReference();
-
-    /// <summary>解除模态子窗口造成的输入阻止。</summary>
-    public void ReleaseModalChildBlock() => _inputGate.RemoveModalReference();
 
     /// <summary>创建 HWND、完成首次导航并显示窗口。</summary>
     public async Task InitializeAndShowAsync(CancellationToken token = default)
