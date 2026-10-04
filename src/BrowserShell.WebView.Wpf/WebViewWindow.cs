@@ -94,6 +94,9 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// <summary>窗口是否已关闭。</summary>
     public bool IsClosed => _closedOnce;
 
+    /// <summary>首次导航的失败原因；为 null 表示首次导航成功或未指定地址。</summary>
+    public string? LastNavigationError { get; private set; }
+
     /// <summary>当前直接子模态窗口数量。</summary>
     public int ModalReferenceCount => _inputGate.ModalReferenceCount;
 
@@ -108,6 +111,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     {
         _initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         token = _initializationCancellation.Token;
+        var cancelled = false;
         try
         {
             // 先创建 HWND 并挂接原生边框，再创建 controller；顺序错误会让自绘标题栏
@@ -119,84 +123,151 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
             UpdateLayout();
             await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Loaded, token);
             await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Render, token);
-            await _webViewInitialization.RunInteractiveAsync(
-                () => _webView.EnsureCoreWebView2Async(_environment, _controllerOptions),
-                token);
-            var core = _webView.CoreWebView2;
-            core.Settings.AreHostObjectsAllowed = false;
-            core.Settings.AreDefaultScriptDialogsEnabled = false;
-            core.Settings.AreDevToolsEnabled = false;
-            core.Settings.AreDefaultContextMenusEnabled = false;
-            core.Settings.IsStatusBarEnabled = false;
-            core.NewWindowRequested += OnNewWindowRequested;
-            core.PermissionRequested += (_, eventArgs) => eventArgs.State = CoreWebView2PermissionState.Deny;
-            core.DownloadStarting += (_, eventArgs) => eventArgs.Cancel = true;
-            core.NavigationStarting += (_, eventArgs) =>
-            {
-                if (_allowedOrigins.Count == 0) return;
-                if (!Uri.TryCreate(eventArgs.Uri, UriKind.Absolute, out var target)
-                    || !_allowedOrigins.Contains(GetOrigin(target)))
-                {
-                    eventArgs.Cancel = true;
-                }
-            };
-            await core.AddScriptToExecuteOnDocumentCreatedAsync(WebViewPresentationMask.InitializationScript);
-            await core.AddScriptToExecuteOnDocumentCreatedAsync(CreateWindowBridgeScript(Id));
-            core.WebMessageReceived += (_, eventArgs) => _ = HandleBridgeMessageAsync(eventArgs.WebMessageAsJson);
 
-            var targetUrl = _options.Url;
-            var initialPresentationCompleted = false;
-            core.NavigationCompleted += (_, eventArgs) =>
-            {
-                if (initialPresentationCompleted && eventArgs.IsSuccess)
-                {
-                    _ = RevealCompletedNavigationAsync(core);
-                }
-            };
-
-            if (targetUrl is not null)
-            {
-                var initialNavigation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                void OnInitialNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs eventArgs)
-                {
-                    if (!IsSameDocument(core.Source, targetUrl)) return;
-                    initialNavigation.TrySetResult(eventArgs.IsSuccess);
-                }
-
-                core.NavigationCompleted += OnInitialNavigationCompleted;
-                try
-                {
-                    _webView.Source = targetUrl;
-                    if (!await initialNavigation.Task.WaitAsync(TimeSpan.FromSeconds(15), token))
-                    {
-                        throw new InvalidOperationException("WebView 窗口首次导航失败。");
-                    }
-                }
-                finally
-                {
-                    core.NavigationCompleted -= OnInitialNavigationCompleted;
-                }
-            }
-
-            await RevealCompletedNavigationAsync(core, token);
-            initialPresentationCompleted = true;
-            _initializationSurface.Visibility = Visibility.Collapsed;
-            _webView.Visibility = Visibility.Visible;
-            UpdateLayout();
-            await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Render, token);
-            if (_options.Focus) Activate();
-            token.ThrowIfCancellationRequested();
-            if (_openedAsync is not null) await _openedAsync(this);
+            // WebView2 初始化与首次导航单独兜底：窗口已经显示出来了，WebView 失败时
+            // 保留窗口并把错误呈现给用户，而不是让窗口一闪即消。
+            await InitializeWebViewAsync(token);
         }
         catch (OperationCanceledException) when (_forceClose)
         {
             // 加载过程中已确认关闭，不把本地主动取消当作初始化失败。
+            cancelled = true;
+        }
+        catch (Exception exception)
+        {
+            // WebView2 Runtime 缺失、Profile 创建失败等：保留窗口并显示原因，
+            // 让调用方看得见问题，而不是拿到一个闪退的窗口。
+            LastNavigationError = $"{exception.GetType().Name}: {exception.Message}";
+            ShowInitializationFailure(exception);
         }
         finally
         {
             _initializationCancellation?.Dispose();
             _initializationCancellation = null;
         }
+
+        if (!cancelled && _openedAsync is not null && !_closedOnce)
+        {
+            await _openedAsync(this);
+        }
+    }
+
+    /// <summary>创建 controller、挂接事件并完成首次导航。</summary>
+    private async Task InitializeWebViewAsync(CancellationToken token)
+    {
+        await _webViewInitialization.RunInteractiveAsync(
+            () => _webView.EnsureCoreWebView2Async(_environment, _controllerOptions),
+            token);
+        var core = _webView.CoreWebView2;
+        core.Settings.AreHostObjectsAllowed = false;
+        core.Settings.AreDefaultScriptDialogsEnabled = false;
+        core.Settings.AreDevToolsEnabled = false;
+        core.Settings.AreDefaultContextMenusEnabled = false;
+        core.Settings.IsStatusBarEnabled = false;
+        core.NewWindowRequested += OnNewWindowRequested;
+        core.PermissionRequested += (_, eventArgs) => eventArgs.State = CoreWebView2PermissionState.Deny;
+        core.DownloadStarting += (_, eventArgs) => eventArgs.Cancel = true;
+        core.NavigationStarting += (_, eventArgs) =>
+        {
+            if (_allowedOrigins.Count == 0) return;
+            if (!Uri.TryCreate(eventArgs.Uri, UriKind.Absolute, out var target)
+                || !_allowedOrigins.Contains(GetOrigin(target)))
+            {
+                eventArgs.Cancel = true;
+            }
+        };
+        await core.AddScriptToExecuteOnDocumentCreatedAsync(WebViewPresentationMask.InitializationScript);
+        await core.AddScriptToExecuteOnDocumentCreatedAsync(CreateWindowBridgeScript(Id));
+        core.WebMessageReceived += (_, eventArgs) => _ = HandleBridgeMessageAsync(eventArgs.WebMessageAsJson);
+
+        var targetUrl = _options.Url;
+        var initialPresentationCompleted = false;
+        core.NavigationCompleted += (_, eventArgs) =>
+        {
+            if (initialPresentationCompleted && eventArgs.IsSuccess)
+            {
+                _ = RevealCompletedNavigationAsync(core);
+            }
+        };
+
+        if (targetUrl is not null)
+        {
+            var initialNavigation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void OnInitialNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs eventArgs)
+            {
+                // 首次导航的完成回调可能对应重定向链上的任意一跳，也可能对应页面内的
+                // SPA 路由。不能用 URL 比对判断"是不是我请求的那次导航"——重定向会让
+                // 地址变化，比对失败就一直等下去。这里接受第一个到达的完成回调。
+                initialNavigation.TrySetResult(eventArgs.IsSuccess);
+            }
+
+            core.NavigationCompleted += OnInitialNavigationCompleted;
+            try
+            {
+                _webView.Source = targetUrl;
+                // 首次导航失败（网络不可达、DNS 失败、超时）不抛异常：窗口本身已经可用，
+                // 调用方可重试，失败原因记录在 LastNavigationError。
+                if (!await initialNavigation.Task.WaitAsync(TimeSpan.FromSeconds(30), token))
+                {
+                    LastNavigationError = "首次导航失败。";
+                }
+            }
+            catch (TimeoutException)
+            {
+                LastNavigationError = "首次导航超时。";
+            }
+            finally
+            {
+                core.NavigationCompleted -= OnInitialNavigationCompleted;
+            }
+        }
+
+        await RevealCompletedNavigationAsync(core, token);
+        initialPresentationCompleted = true;
+        _initializationSurface.Visibility = Visibility.Collapsed;
+        _webView.Visibility = Visibility.Visible;
+        UpdateLayout();
+        await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Render, token);
+        if (_options.Focus) Activate();
+    }
+
+    /// <summary>把 WebView2 初始化失败的原因显示在窗口内容区，替代加载指示。</summary>
+    private void ShowInitializationFailure(Exception exception)
+    {
+        var content = new StackPanel
+        {
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            MaxWidth = 520,
+            Margin = new Thickness(24),
+        };
+        content.Children.Add(new TextBlock
+        {
+            Text = "无法初始化 WebView2",
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Brushes.Firebrick,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = exception.Message,
+            Margin = new Thickness(0, 8, 0, 0),
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            Foreground = Brushes.DimGray,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = "请确认已安装 WebView2 Runtime。",
+            Margin = new Thickness(0, 12, 0, 0),
+            Foreground = Brushes.Gray,
+            HorizontalAlignment = HorizontalAlignment.Center,
+        });
+        _initializationSurface.Child = content;
+        _initializationSurface.Visibility = Visibility.Visible;
+        _webView.Visibility = Visibility.Collapsed;
     }
 
     /// <summary>以新的设置原位更新窗口外观，需要时由调用方另行导航。</summary>
@@ -461,17 +532,6 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private static bool IsFinitePositive(double value) => double.IsFinite(value) && value > 0;
 
     private static string GetOrigin(Uri uri) => uri.GetLeftPart(UriPartial.Authority);
-
-    private static bool IsSameDocument(string source, Uri target)
-    {
-        if (!Uri.TryCreate(source, UriKind.Absolute, out var current)) return false;
-        return Uri.Compare(
-            current,
-            target,
-            UriComponents.SchemeAndServer | UriComponents.PathAndQuery,
-            UriFormat.SafeUnescaped,
-            StringComparison.OrdinalIgnoreCase) == 0;
-    }
 
     /// <summary>注入页面侧窗口控制桥，供页面脚本最小化、最大化、还原与请求关闭。</summary>
     private static string CreateWindowBridgeScript(string windowId)

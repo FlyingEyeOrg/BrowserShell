@@ -111,7 +111,9 @@ public partial class MainWindow : ChromeWindow
                 // 首次导航完成并显示后触发；此处回报窗口标识与当前窗口数。
                 OpenedAsync = opened =>
                 {
-                    StatusText.Text = $"已打开 {opened.Id[..8]}（{_shell?.WindowCount ?? 0} 个窗口）。";
+                    StatusText.Text = opened.LastNavigationError is { } error
+                        ? $"已打开 {opened.Id[..8]}，但首次导航有问题：{error}"
+                        : $"已打开 {opened.Id[..8]}（{_shell?.WindowCount ?? 0} 个窗口）。";
                     return Task.CompletedTask;
                 },
                 ClosedAsync = closed =>
@@ -160,7 +162,9 @@ public partial class MainWindow : ChromeWindow
             });
 
             _opened++;
-            StatusText.Text = $"已打开本地示例页 {window.Id[..8]}。";
+            StatusText.Text = window.LastNavigationError is { } error
+                ? $"已打开本地示例页，但首次导航有问题：{error}"
+                : $"已打开本地示例页 {window.Id[..8]}。";
         }        catch (Exception exception)
         {
             StatusText.Text = $"打开失败：{exception.Message}";

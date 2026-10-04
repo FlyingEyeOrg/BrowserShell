@@ -84,6 +84,8 @@ public sealed class WebViewShell : IAsyncDisposable
         }
         catch
         {
+            // 窗口创建/初始化本身失败：此时窗口不可用，必须回收，否则会残留一个
+            // 没有 WebView 的空壳窗口。
             _windows.Remove(windowId);
             await window.DisposeAsync();
             throw;
