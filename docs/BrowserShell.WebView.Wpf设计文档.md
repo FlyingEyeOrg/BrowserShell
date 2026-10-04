@@ -147,21 +147,34 @@ BrowserShell.WebView.Wpf  (net8.0-windows)
 
 ## 四、内部结构
 
+目录**刻意保持扁平**：6 个源文件全部位于项目根目录，不设子目录。
+
 ```
 src/BrowserShell.WebView.Wpf/
 ├── WebViewShell.cs                                127  入口：窗口托管
 ├── WebViewWindow.cs                               588  窗口本体（职责过载，见下）
 ├── WebViewWindowOptions.cs                         82  配置 + 关闭上下文
 ├── WebViewWindowEnvironment.cs                    122  环境 / Profile / 临时目录
-├── Windows/
-│   ├── Coordination/
-│   │   └── WebView2InitializationCoordinator.cs    28  串行初始化
-│   └── WebView/
-│       └── WebViewPresentationMask.cs              97  加载遮罩（注入脚本）
+├── WebView2InitializationCoordinator.cs            28  串行初始化
+├── WebViewPresentationMask.cs                      97  加载遮罩（注入脚本）
+├── BrowserShell.WebView.Wpf.csproj
 └── README.md                                       52  使用说明
 ```
 
-合计 **6 个 .cs / 1044 行**（另有 `csproj` 与 `README.md`，共 8 个入库文件）。
+合计 **6 个 .cs / 1044 行**（共 8 个入库文件）。
+
+**为什么扁平**：全部类型同属单一命名空间 `BrowserShell.WebView.Wpf`，仓库规模只有 6 个文件。
+此时任何子目录都会造成"物理目录结构与逻辑命名空间不一致"，并让 1 个文件独占一层目录
+（如原 `Windows/Coordination/`、`Windows/WebView/` 各只装 1 个文件）。
+子目录带来的定位成本高于它提供的分类价值，故全部收敛到根目录。
+
+> 历史说明：`Windows/` 及其下 `Coordination/`、`WebView/` 是 SDK 时代的遗留分层——
+> 当年存在 `Instances/`、`Frame/`、`Interop/`、`Icons/`、`Pages/` 等多个目录，
+> 各装有多个文件，分层是有意义的。瘦身后文件被大量删除，目录结构未同步收拢，
+> 才出现"空壳两层、每层一个文件"的形态。本次重组已将其拍平。
+>
+> 若将来文件数显著增长（例如超过 15 个），再按**职责**而非历史沿革重新引入
+> 子目录，并同步调整命名空间。
 
 > 变更记录：原 9 文件 / 1211 行中的输入门控三件套
 > （`NativeInput.cs` 21 行、`NativeWindowInputGate.cs` 96 行、`ModalWindowBlockState.cs` 35 行）
@@ -331,7 +344,8 @@ WebView 失败时保留窗口并显示原因，避免"一闪即消"。首次导�
    测试断言的是 WPF 可视树仍 `IsEnabled`，但原生标题栏交互未被覆盖。
 3. 当前无外部集成方，删除成本最低。
 
-**删除内容**：
+**删除内容**（路径为删除当时的位置；`Windows/Instances/` 目录随后在
+目录重组中一并移除，见第四节）：
 
 | 文件 | 处理 |
 |---|---|
