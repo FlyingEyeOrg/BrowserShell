@@ -11,7 +11,10 @@ public sealed class WebViewShell : IAsyncDisposable
     private readonly WebViewWindowEnvironment _environment;
     private readonly Dispatcher _dispatcher;
     private readonly Dictionary<string, WebViewWindow> _windows = new(StringComparer.Ordinal);
-    private bool _disposed;
+    // 0 = 可用，1 = 正在释放/已释放。用 int 以便 Interlocked 做一次性转移。
+    private int _disposeStarted;
+
+    private bool IsDisposed => Volatile.Read(ref _disposeStarted) != 0;
 
     private WebViewShell(WebViewWindowEnvironment environment, Dispatcher dispatcher)
     {
@@ -59,22 +62,36 @@ public sealed class WebViewShell : IAsyncDisposable
         CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(options);
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        var windowId = id ?? Guid.NewGuid().ToString("N");
-        if (_windows.ContainsKey(windowId))
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        if (id is not null)
         {
-            throw new InvalidOperationException($"窗口标识 {windowId} 已存在。");
+            // null 表示「自动生成」，非 null 才需要校验；白空字符串是调用方的错误。
+            ArgumentException.ThrowIfNullOrWhiteSpace(id);
         }
 
+        var windowId = id ?? Guid.NewGuid().ToString("N");
         var window = await _dispatcher.InvokeAsync(() =>
         {
+            // 释放可能在本方法 await 期间发生，因此必须在 UI 线程回调内重新确认一次，
+            // 否则会把窗口注册进一个已释放的 shell。
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            // 查重与注册必须在同一个 UI 线程回调内完成。OpenAsync 允许从任意线程调用，
+            // 若把查重放在 await 之前，两个并发调用会同时通过检查、随后在注册时互相覆盖，
+            // 结果是两次都成功返回、却有一个窗口不在注册表中（孤儿窗口）。
+            if (_windows.ContainsKey(windowId))
+            {
+                throw new InvalidOperationException($"窗口标识 {windowId} 已存在。");
+            }
+
             var created = new WebViewWindow(
                 windowId,
                 options,
                 _environment.Core,
                 _environment.CreateControllerOptions(windowId),
-                _environment.InitializationCoordinator);
-            _windows[windowId] = created;
+                _environment.InitializationCoordinator,
+                OnWindowClosed);
+            // 用 Add 而非索引器：索引器会把已注册的同名窗口静默顶掉。
+            _windows.Add(windowId, created);
             return created;
         });
 
@@ -85,8 +102,9 @@ public sealed class WebViewShell : IAsyncDisposable
         catch
         {
             // 窗口创建/初始化本身失败：此时窗口不可用，必须回收，否则会残留一个
-            // 没有 WebView 的空壳窗口。
-            _windows.Remove(windowId);
+            // 没有 WebView 的空壳窗口。DisposeAsync 内部会经 OnWindowClosed 移除注册，
+            // 这里再显式移除一次以覆盖「窗口尚未进入关闭流程」的路径（Remove 幂等）。
+            await RemoveAsync(windowId);
             await window.DisposeAsync();
             throw;
         }
@@ -94,7 +112,7 @@ public sealed class WebViewShell : IAsyncDisposable
         return window;
     }
 
-    /// <summary>关闭指定窗口并从管理器中移除。</summary>
+    /// <summary>请求关闭指定窗口。窗口经裁决拒绝关闭时，仍保留在管理器中。</summary>
     public async Task CloseAsync(string id, string source = "Service")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
@@ -103,25 +121,59 @@ public sealed class WebViewShell : IAsyncDisposable
             return;
         }
 
+        // CloseAsync 可能被 ClosingAsync 裁决为拒绝，此时窗口仍然存活，必须保留注册。
+        // 真正关闭时由 OnWindowClosed 回调负责移除，这里不再手动 Remove——
+        // 否则一个「拒绝关闭」的窗口会被移出注册表，变成无人跟踪的孤儿。
         await window.CloseAsync(source);
-        _windows.Remove(id);
     }
+
+    /// <summary>从注册表移除标识；可从任意线程调用。Remove 幂等，重复调用无副作用。</summary>
+    private Task RemoveAsync(string id)
+    {
+        if (_dispatcher.CheckAccess())
+        {
+            _windows.Remove(id);
+            return Task.CompletedTask;
+        }
+
+        return _dispatcher.InvokeAsync(() => _windows.Remove(id)).Task;
+    }
+
+    /// <summary>
+    /// 窗口真正关闭后的回调：从注册表移除，释放该标识。
+    /// 由 <see cref="WebViewWindow"/> 在其关闭路径上调用一次，覆盖标题栏关闭、
+    /// 页面桥关闭与宿主主动关闭三种来源。
+    /// </summary>
+    private Task OnWindowClosed(WebViewWindow window) => RemoveAsync(window.Id);
 
     /// <summary>释放所有窗口与 WebView2 环境。</summary>
     public async ValueTask DisposeAsync()
     {
-        if (_disposed)
+        // Interlocked 保证并发的 DisposeAsync 只有一个真正执行释放。
+        if (Interlocked.Exchange(ref _disposeStarted, 1) == 1)
         {
             return;
         }
 
-        _disposed = true;
         foreach (var window in _windows.Values.ToArray())
         {
+            // 每个窗口的 DisposeAsync 会经 OnWindowClosed 把自己移出注册表。
             await window.DisposeAsync();
         }
 
-        _windows.Clear();
+        await RemoveAllAsync();
         await _environment.DisposeAsync();
+    }
+
+    /// <summary>清空注册表；可从任意线程调用。</summary>
+    private Task RemoveAllAsync()
+    {
+        if (_dispatcher.CheckAccess())
+        {
+            _windows.Clear();
+            return Task.CompletedTask;
+        }
+
+        return _dispatcher.InvokeAsync(_windows.Clear).Task;
     }
 }

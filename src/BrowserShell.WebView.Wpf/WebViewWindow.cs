@@ -35,6 +35,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private readonly Func<WebViewWindow, Task>? _openedAsync;
     private readonly Func<WebViewWindow, Task>? _closedAsync;
     private readonly Func<WebViewWindow, Uri, Task>? _newWindowAsync;
+    private readonly Func<WebViewWindow, Task>? _onClosed;
 
     private WebViewWindowOptions _options;
     private HashSet<string> _allowedOrigins;
@@ -50,7 +51,8 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         WebViewWindowOptions options,
         CoreWebView2Environment environment,
         CoreWebView2ControllerOptions controllerOptions,
-        WebView2InitializationCoordinator webViewInitialization)
+        WebView2InitializationCoordinator webViewInitialization,
+        Func<WebViewWindow, Task>? onClosed = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(environment);
@@ -62,6 +64,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         _environment = environment;
         _controllerOptions = controllerOptions;
         _webViewInitialization = webViewInitialization;
+        _onClosed = onClosed;
         _closingAsync = options.ClosingAsync;
         _openedAsync = options.OpenedAsync;
         _closedAsync = options.ClosedAsync;
@@ -478,6 +481,10 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     {
         if (_closedOnce) return;
         _closedOnce = true;
+        // 先让所有者把本窗口移出注册表，再回调用户。
+        // 顺序不可颠倒：ClosedAsync 里常会读取 WindowCount / Windows（示例即如此），
+        // 若此时本窗口仍在注册表中，宿主看到的窗口数会多算一个。
+        if (_onClosed is not null) await _onClosed(this);
         if (_closedAsync is not null) await _closedAsync(this);
     }
 
