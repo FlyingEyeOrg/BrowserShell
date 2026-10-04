@@ -87,14 +87,14 @@ public sealed class NativeWindowInputGateTests
 
                 gate.AddModalReference();
 
-                Assert.False(NativeWindowMethods.IsWindowEnabled(handle));
+                Assert.False(NativeInput.IsWindowEnabled(handle));
                 Assert.True(window.IsEnabled);
                 Assert.True(webView.IsEnabled);
                 Assert.Same(webView, window.Content);
 
                 gate.RemoveModalReference();
 
-                Assert.True(NativeWindowMethods.IsWindowEnabled(handle));
+                Assert.True(NativeInput.IsWindowEnabled(handle));
                 Assert.Same(webView, window.Content);
                 window.Close();
                 webView.Dispose();

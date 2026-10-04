@@ -1,22 +1,19 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
     <Version>2.0.0</Version>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <AssemblyName>BrowserShell.WebView.Wpf</AssemblyName>
     <RootNamespace>BrowserShell.WebView.Wpf</RootNamespace>
+    <Description>BrowserShell：在 WindowChromeKit 的 ChromeWindow 上承载 WebView2 的桌面 Web 外壳类库。</Description>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.Web.WebView2" />
-    <PackageReference Include="Serilog.Extensions.Hosting" />
-    <PackageReference Include="Serilog.Formatting.Compact" />
-    <PackageReference Include="Serilog.Sinks.Console" />
-    <PackageReference Include="Serilog.Sinks.File" />
     <PackageReference Include="WindowChromeKit.Wpf" />
-  </ItemGroup>
-  <ItemGroup>
-    <Resource Include="Assets\BrowserShell.ico" />
+    <None Update="README.md" Pack="true" PackagePath="" />
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="BrowserShell.WebView.Wpf.Tests" />

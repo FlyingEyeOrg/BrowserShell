@@ -1,5 +1,3 @@
-using Serilog;
-
 namespace BrowserShell.WebView.Wpf;
 
 /// <summary>
@@ -25,9 +23,9 @@ internal sealed class NativeWindowInputGate
         _windowKind = windowKind;
         _windowId = windowId;
         _handle = handle;
-        _isWindowEnabled = isWindowEnabled ?? NativeWindowMethods.IsWindowEnabled;
+        _isWindowEnabled = isWindowEnabled ?? NativeInput.IsWindowEnabled;
         _enableWindow = enableWindow ?? ((windowHandle, enabled) =>
-            _ = NativeWindowMethods.EnableWindow(windowHandle, enabled));
+            _ = NativeInput.EnableWindow(windowHandle, enabled));
     }
 
     public int ModalReferenceCount => _modal.Count;
@@ -75,14 +73,6 @@ internal sealed class NativeWindowInputGate
         var windowHandle = _handle();
         if (windowHandle == IntPtr.Zero)
         {
-            Log.Debug(
-                "BrowserShellNativeInputGateSkipped for {WindowKind} {WindowId}: Hwnd={Hwnd}, ModalCount={ModalCount}, ResultPending={ResultPending}, Reason={Reason}",
-                _windowKind,
-                _windowId(),
-                windowHandle,
-                ModalReferenceCount,
-                IsResultPending,
-                reason);
             return;
         }
 
@@ -94,29 +84,6 @@ internal sealed class NativeWindowInputGate
             _enableWindow(windowHandle, expectedEnabled);
         }
 
-        var enabledAfter = _isWindowEnabled(windowHandle);
-        const string message = "BrowserShellNativeInputGate for {WindowKind} {WindowId}: Hwnd={Hwnd}, ModalCount={ModalCount}, ResultPending={ResultPending}, ExpectedEnabled={ExpectedEnabled}, EnabledBefore={EnabledBefore}, EnabledAfter={EnabledAfter}, Switched={Switched}, Reason={Reason}";
-        object?[] values =
-        [
-            _windowKind,
-            _windowId(),
-            windowHandle,
-            ModalReferenceCount,
-            IsResultPending,
-            expectedEnabled,
-            enabledBefore,
-            enabledAfter,
-            switched,
-            reason,
-        ];
-        if (switched)
-        {
-            Log.Information(message, values);
-        }
-        else
-        {
-            Log.Debug(message, values);
-        }
     }
 
     private void ApplyAggregateTransition(bool wasBlocked, string reason)

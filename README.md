@@ -8,44 +8,109 @@ Windows 桌面 Web 外壳：把 Web 页面承载到用户桌面，供任意服�
 
 | 项目 | TFM | 说明 |
 |---|---|---|
+| `src/BrowserShell.WebView.Wpf` | `net8.0-windows` | 桌面 Web 外壳类库。在 `ChromeWindow` 上承载 WebView2 |
 | `src/BrowserShell.Service.SDK` | `net8.0` | 服务侧窗口能力 SDK。服务通过它连接外壳、打开与管理桌面窗口 |
-| `src/BrowserShell.WebView.Wpf` | `net8.0-windows` | WPF + WebView2 桌面代理类库，提供基础 Web 套壳能力 |
-| `tests/BrowserShell.WebView.Wpf.Tests` | `net8.0-windows` | 桌面代理单元测试 |
+| `tests/BrowserShell.WebView.Wpf.Tests` | `net8.0-windows` | 外壳单元测试 |
 
-`BrowserShell.WebView.Wpf` 是类库，**不含可执行入口**。宿主进程由引用方自行编写：
+## 窗口基础
+
+`BrowserShell.WebView.Wpf` **不自带窗口边框**。原生拖动、缩放、Snap Layout、DWM 阴影、
+DPI 处理与工作区约束全部由 [WindowChromeKit](https://www.nuget.org/packages/WindowChromeKit.Wpf)
+的 `ChromeWindow` 提供，本项目只负责：
+
+- WebView2 的创建、隔离 Profile 与串行初始化
+- 首次导航、同源约束、新窗口处理
+- 页面侧窗口控制桥（`window.browserShell.window.*`）
+- 加载遮罩、模态输入门控
+- 窗口级命令（显示/隐藏/最小化/最大化/还原/标题）
 
 ```csharp
 using System.Windows;
 using BrowserShell.WebView.Wpf;
+using WindowChromeKit.Wpf;
 
+var shell = await WebViewShell.CreateAsync(Application.Current.Dispatcher);
+
+var window = await shell.OpenAsync(new WebViewWindowOptions
+{
+    Url = new Uri("https://www.example.com/index.html"),
+    Title = "SAP",
+    Width = 1280,
+    Height = 800,
+    TitleBarStyle = ChromeTitleBarStyle.VsCode,
+    TitleBarPalette = ChromeTitleBarPalette.ElementPlusDark,
+});
+
+await window.NavigateAsync(new Uri("https://www.example.com/other.html"));
+await window.ReloadAsync();
+await window.CloseAsync();
+```
+
+### 关闭裁决
+
+窗口默认直接关闭。需要业务裁决时提供 `ClosingAsync`，返回 `false` 即拒绝本次关闭：
+
+```csharp
+var window = await shell.OpenAsync(new WebViewWindowOptions
+{
+    Url = new Uri("https://www.example.com/index.html"),
+    ClosingAsync = (context, _) => Task.FromResult(CanClose()),
+});
+```
+
+`context.Source` 表示关闭来源：`WindowChrome` 为标题栏按钮，`Page` 为页面脚本。
+
+### 页面侧控制
+
+外壳会向页面注入 `window.browserShell`，页面可据此控制自己的窗口：
+
+```js
+browserShell.window.minimize();
+browserShell.window.maximize();
+browserShell.window.restore();
+const result = await browserShell.window.close(); // { accepted, code, message }
+```
+
+### 导航约束
+
+`AllowedOrigins` 为空表示不限制导航来源；非空时只允许列表内的 Origin（含
+`NavigationStarting` 拦截与新窗口处理）。`NewWindowRequestedAsync` 为 null 时，
+页面发起的新窗口请求会在当前窗口内导航。
+
+## 宿主
+
+`BrowserShell.WebView.Wpf` 是纯类库，不含程序入口。宿主进程由引用方自行编写：
+
+```csharp
 public partial class App : Application
 {
-    private ShellHost? _host;
+    private WebViewShell? _shell;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _host = await ShellHost.StartAsync(Dispatcher, e.Args.SingleOrDefault(), CancellationToken.None);
+        _shell = await WebViewShell.CreateAsync(Dispatcher);
     }
 
     protected override async void OnExit(ExitEventArgs e)
     {
-        if (_host is not null) await _host.DisposeAsync();
+        if (_shell is not null) await _shell.DisposeAsync();
         base.OnExit(e);
     }
 }
 ```
 
-宿主 WPF 应用需满足：`net8.0-windows`、启用 WPF、引用 `BrowserShell.WebView.Wpf`，并按需提供 `app.manifest`（PerMonitorV2 DPI 感知）。
+宿主 WPF 应用需满足：`net8.0-windows`、启用 WPF、引用 `BrowserShell.WebView.Wpf`。
+`WebViewWindow` 本身即 `ChromeWindow` 派生类，宿主也可直接继承它扩展自定义行为。
 
 ## 依赖方向
 
 ```
 宿主 exe（引用方自建）
-   └──> BrowserShell.WebView.Wpf  (net8.0-windows)
+   ├──> BrowserShell.WebView.Wpf  (net8.0-windows)
    └──> BrowserShell.Service.SDK  (net8.0)
 
-BrowserShell.WebView.Wpf ──> BrowserShell.Service.SDK
+BrowserShell.WebView.Wpf ──> WindowChromeKit.Wpf + Microsoft.Web.WebView2
 BrowserShell.Service.SDK ──> 不引用 WPF
 ```
 
