@@ -21,9 +21,10 @@ var window = await shell.OpenAsync(new WebViewWindowOptions
     Title = "SAP",
     Width = 1280,
     Height = 800,
-    TitleBarStyle = ChromeTitleBarStyle.VsCode,
 });
 ```
+
+标题栏默认使用 `ChromeTitleBarStyle.Chrome`（含 WPF 版自带配色），无需显式指定。
 
 ## 主要类型
 

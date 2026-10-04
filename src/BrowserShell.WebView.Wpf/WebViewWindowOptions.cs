@@ -38,10 +38,10 @@ public sealed class WebViewWindowOptions
     /// <summary>是否允许用户调整大小。关闭后标题栏的最大化按钮也会禁用。</summary>
     public bool Resizable { get; init; } = true;
 
-    /// <summary>标题栏几何骨架。见 <see cref="ChromeTitleBarStyle"/>。</summary>
+    /// <summary>标题栏几何骨架。默认为 <see cref="ChromeTitleBarStyle.Chrome"/>。</summary>
     public ChromeTitleBarStyle TitleBarStyle { get; init; } = ChromeTitleBarStyle.Chrome;
 
-    /// <summary>标题栏配色。见 <see cref="ChromeTitleBarPalette"/>。</summary>
+    /// <summary>标题栏配色。默认为 <see cref="ChromeTitleBarPalette.Default"/>，即该样式自带的那套。</summary>
     public ChromeTitleBarPalette TitleBarPalette { get; init; } = ChromeTitleBarPalette.Default;
 
     /// <summary>

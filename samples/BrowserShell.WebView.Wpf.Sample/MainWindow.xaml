@@ -8,8 +8,7 @@
                      Height="620"
                      MinWidth="620"
                      MinHeight="460"
-                     TitleBarStyle="VsCode"
-                     TitleBarPalette="ElementPlusDark"
+                     TitleBarStyle="Chrome"
                      WindowStartupLocation="CenterScreen">
     <Grid Background="#1E1E1E">
         <Grid.RowDefinitions>

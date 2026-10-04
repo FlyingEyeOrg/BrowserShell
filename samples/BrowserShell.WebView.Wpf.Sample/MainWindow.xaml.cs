@@ -36,9 +36,10 @@ public partial class MainWindow : ChromeWindow
     {
         InitializeComponent();
         StyleBox.ItemsSource = Styles;
-        StyleBox.SelectedItem = ChromeTitleBarStyle.VsCode;
+        // 默认跟随 WebViewWindowOptions 的默认值（Chrome 骨架 + 自带配色）。
+        StyleBox.SelectedItem = ChromeTitleBarStyle.Chrome;
         PaletteBox.ItemsSource = Palettes;
-        PaletteBox.SelectedItem = ChromeTitleBarPalette.ElementPlusDark;
+        PaletteBox.SelectedItem = ChromeTitleBarPalette.Default;
         ClosingBox.ItemsSource = ClosingModes;
         ClosingBox.SelectedIndex = 1;
         Loaded += OnLoaded;
@@ -157,8 +158,7 @@ public partial class MainWindow : ChromeWindow
                 Height = 620,
                 MinWidth = 420,
                 MinHeight = 300,
-                TitleBarStyle = ChromeTitleBarStyle.VsCode,
-                TitleBarPalette = ChromeTitleBarPalette.ElementPlusPrimary,
+                // 不指定标题栏样式，使用 WebViewWindowOptions 的默认值（Chrome）。
             });
 
             _opened++;

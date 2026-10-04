@@ -46,14 +46,14 @@ using WindowChromeKit.Wpf;
 
 var shell = await WebViewShell.CreateAsync(Application.Current.Dispatcher);
 
+// 标题栏默认使用 Chrome 样式（ChromeTitleBarStyle.Chrome + 自带配色）；
+// 需要时再显式指定其他骨架或配色。
 var window = await shell.OpenAsync(new WebViewWindowOptions
 {
     Url = new Uri("https://www.example.com/index.html"),
     Title = "SAP",
     Width = 1280,
     Height = 800,
-    TitleBarStyle = ChromeTitleBarStyle.VsCode,
-    TitleBarPalette = ChromeTitleBarPalette.ElementPlusDark,
 });
 
 await window.NavigateAsync(new Uri("https://www.example.com/other.html"));
