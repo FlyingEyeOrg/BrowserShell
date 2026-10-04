@@ -11,6 +11,21 @@ Windows 桌面 Web 外壳：把 Web 页面承载到用户桌面，供任意服�
 | `src/BrowserShell.WebView.Wpf` | `net8.0-windows` | 桌面 Web 外壳类库。在 `ChromeWindow` 上承载 WebView2 |
 | `src/BrowserShell.Service.SDK` | `net8.0` | 服务侧窗口能力 SDK。服务通过它连接外壳、打开与管理桌面窗口 |
 | `tests/BrowserShell.WebView.Wpf.Tests` | `net8.0-windows` | 外壳单元测试 |
+| `samples/BrowserShell.WebView.Wpf.Sample` | `net8.0-windows` | 可运行的示例宿主：选择标题栏样式/配色、打开窗口、关闭裁决 |
+
+## 运行示例
+
+```bash
+dotnet run --project samples/BrowserShell.WebView.Wpf.Sample
+```
+
+示例是一个 `ChromeWindow` 宿主，提供：
+
+- **打开 Web 窗口** —— 按填入的地址打开外壳窗口，可指定标题栏样式（`Chrome` / `Windows` /
+  `VsCode`）、配色（`Default` / `ElementPlusPrimary` / `ElementPlusDark` / `ElementPlusNeutral`）、
+  置顶、是否可调整大小、是否限制同源导航，以及关闭裁决策略（直接关闭 / 允许 / 拒绝）
+- **打开本地示例页** —— 打开随示例复制的 `Assets/demo.html`，该页通过
+  `browserShell.window.*` 演示最小化、最大化、还原与请求关闭（含裁决结果回传）
 
 ## 窗口基础
 

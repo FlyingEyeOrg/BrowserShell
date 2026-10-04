@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>BrowserShell.WebView.Wpf.Sample</AssemblyName>
+    <RootNamespace>BrowserShell.WebView.Wpf.Sample</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BrowserShell.WebView.Wpf\BrowserShell.WebView.Wpf.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 本地示例页：随示例一起复制到输出目录，便于离线运行。 -->
+    <None Update="Assets\demo.html" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

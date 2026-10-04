@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BrowserShell 本地示例页</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 40px 32px;
+      font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      background: #1b1b1f; color: #e4e4e7;
+    }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 6px; }
+    p.lead { color: #a1a1aa; margin: 0 0 28px; }
+    section { max-width: 720px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+         color: #8b8b93; margin: 28px 0 10px; font-weight: 600; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      font: inherit; padding: 8px 16px; border-radius: 6px; cursor: pointer;
+      border: 1px solid #3f3f46; background: #27272a; color: #e4e4e7;
+      transition: background .12s, border-color .12s;
+    }
+    button:hover { background: #3f3f46; border-color: #52525b; }
+    button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
+    button.primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    code { background: #27272a; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+    pre { background: #18181b; border: 1px solid #27272a; border-radius: 8px;
+          padding: 14px 16px; overflow: auto; font-size: 12px; margin: 0; }
+    .log { min-height: 76px; white-space: pre-wrap; }
+    .muted { color: #71717a; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <section>
+    <h1>BrowserShell 本地示例页</h1>
+    <p class="lead">
+      这个页面通过注入的 <code>window.browserShell</code> 控制承载它的窗口。
+      窗口边框、拖动与 Snap 由 <code>WindowChromeKit</code> 提供，本库只负责内容承载。
+    </p>
+
+    <h2>窗口控制</h2>
+    <div class="row">
+      <button onclick="call('minimize')">最小化</button>
+      <button onclick="call('maximize')">最大化</button>
+      <button onclick="call('restore')">还原</button>
+      <button class="primary" onclick="closeWindow()">请求关闭</button>
+    </div>
+
+    <h2>环境信息</h2>
+    <pre id="info">检测中…</pre>
+
+    <h2>调用日志</h2>
+    <pre class="log" id="log">（尚无调用）</pre>
+
+    <h2>导航</h2>
+    <div class="row">
+      <button onclick="location.reload()">重新加载当前页</button>
+    </div>
+    <p class="muted">
+      宿主勾选“限制为同源导航”后，跨 Origin 的导航与新窗口请求会被拦截。
+    </p>
+  </section>
+
+  <script>
+    const info = document.getElementById('info');
+    const log = document.getElementById('log');
+    const lines = [];
+
+    const bridge = window.browserShell?.window;
+
+    info.textContent = [
+      'windowId     : ' + (bridge?.windowId ?? '（不可用：页面未由 BrowserShell 承载）'),
+      'bridge       : ' + (bridge ? 'window.browserShell.window' : '缺失'),
+      'userAgent    : ' + navigator.userAgent,
+      'devicePixel  : ' + window.devicePixelRatio,
+      'viewport     : ' + window.innerWidth + ' × ' + window.innerHeight,
+    ].join('\n');
+
+    function write(text) {
+      lines.unshift('[' + new Date().toLocaleTimeString() + '] ' + text);
+      log.textContent = lines.join('\n');
+    }
+
+    function call(operation) {
+      if (!bridge) { write('跳过 ' + operation + '：桥不可用'); return; }
+      bridge[operation]();
+      write('已调用 browserShell.window.' + operation + '()');
+    }
+
+    async function closeWindow() {
+      if (!bridge) { write('跳过 close：桥不可用'); return; }
+      write('已请求关闭，等待宿主裁决…');
+      const result = await bridge.close();
+      write('裁决结果 accepted=' + result.accepted
+            + (result.code ? ', code=' + result.code : '')
+            + (result.message ? ', message=' + result.message : ''));
+    }
+
+    if (!bridge) {
+      document.querySelectorAll('button').forEach(b => b.disabled = true);
+      write('未检测到 BrowserShell 桥，窗口控制已禁用。');
+    } else {
+      write('BrowserShell 桥已就绪。');
+    }
+  </script>
+</body>
+</html>
