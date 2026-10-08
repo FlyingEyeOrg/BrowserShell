@@ -28,9 +28,13 @@ namespace BrowserShell.WebView.Wpf;
 ///   <item><description>WebView2 Controller 的并发初始化被串行化。</description></item>
 /// </list>
 ///
-/// <para><b>线程模型</b>：本类型所有成员必须在创建它的 <c>Dispatcher</c>（UI 线程）上调用。
-/// 唯一的例外是 <see cref="CloseAsync"/> 与 <see cref="DisposeAsync"/> 可从任意线程调用，
-/// 其内部关闭流程会经所有者回调切回 UI 线程维护注册表。</para>
+/// <para><b>线程模型</b>：默认要求在 UI 线程（创建窗口的 <c>Dispatcher</c>）上调用。触碰窗口或
+/// WebView2 的调用会经 <c>DispatcherObject.VerifyAccess()</c> 校验线程，
+/// 在错误的线程上抛 <see cref="InvalidOperationException"/>。</para>
+/// <para>为兑现"可从任意线程调用"的约定，下列成员会在内部自动封送回 UI 线程，
+/// 已在 UI 线程时则直接同步执行：<see cref="InitializeAndShowAsync"/>、
+/// <see cref="CloseAsync"/>、<see cref="ClosePermanently"/> 与 <see cref="DisposeAsync"/>。
+/// 其余成员（导航、窗口命令、属性读取）必须在 UI 线程调用。</para>
 ///
 /// <para><b>加载时序</b>：窗口先显示、内容后加载——这样 WebView2 初始化失败时窗口仍然保留，
 /// 并以内容区面板呈现失败原因，而不是让窗口"一闪即消"。
@@ -74,7 +78,14 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private HashSet<string> _allowedOrigins;
     private bool _forceClose;
     private bool _closePending;
-    private bool _closedOnce;
+    // 0 = 未关闭，1 = 关闭已确立。用 int 以便跨线程读取（IsClosed / 封送守卫均为任意线程可见）。
+    private int _closedOnceFlag;
+    // 关闭通知的 Task，保证「所有者注销 + 宿主回调」只执行一次；
+    // 后到的调用者复用同一个 Task，从而不会在回调完成前提前返回。
+    private Task? _closedNotification;
+    // 正在执行关闭回调的线程 ID（0 表示无）。用于识别 DisposeAsync 的重入：
+    // 宿主在 ClosedAsync 内调 DisposeAsync 时不得等待该回调自身的通知，否则自锁。
+    private int _closedCallbackThreadId;
     private int _webViewDisposed;
     private CancellationTokenSource? _initializationCancellation;
     private long _navigationGeneration;
@@ -143,7 +154,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// 窗口是否已关闭（关闭流程已走完，<see cref="WebViewWindowOptions.ClosedAsync"/> 已触发或即将触发）。
     /// </summary>
     /// <remarks>该值在一次生命周期内单调递增一次，关闭后不会回到 <c>false</c>。</remarks>
-    public bool IsClosed => _closedOnce;
+    public bool IsClosed => Volatile.Read(ref _closedOnceFlag) != 0;
 
     /// <summary>
     /// 最近一次导航的失败原因；为 <c>null</c> 表示无已知失败。
@@ -181,7 +192,10 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// <para>首次导航成功后触发 <see cref="WebViewWindowOptions.OpenedAsync"/>；
     /// 若窗口在此期间已关闭，则不再触发。</para>
     /// </remarks>
-    public async Task InitializeAndShowAsync(CancellationToken token = default)
+    public Task InitializeAndShowAsync(CancellationToken token = default) =>
+        RunOnUiThreadAsync(() => InitializeAndShowCoreAsync(token));
+
+    private async Task InitializeAndShowCoreAsync(CancellationToken token)
     {
         _initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         token = _initializationCancellation.Token;
@@ -220,7 +234,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
             _initializationCancellation = null;
         }
 
-        if (!cancelled && _openedAsync is not null && !_closedOnce)
+        if (!cancelled && _openedAsync is not null && !IsClosed)
         {
             await _openedAsync(this);
         }
@@ -449,16 +463,19 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// <para>关闭真正发生后，所有者先将其移出注册表，再回调
     /// <see cref="WebViewWindowOptions.ClosedAsync"/>（因此回调内读到的窗口计数已更新）。</para>
     /// </remarks>
-    public async Task CloseAsync(string source = "Service")
+    public Task CloseAsync(string source = "Service")
     {
-        if (_closedOnce) return;
+        if (IsClosed) return Task.CompletedTask;
         if (_closingAsync is null)
         {
-            CloseCore();
-            return;
+            return RunOnUiThreadAsync(() =>
+            {
+                CloseCore();
+                return Task.CompletedTask;
+            });
         }
 
-        await RequestCloseAsync(source, pageRequestId: null);
+        return RunOnUiThreadAsync(() => RequestCloseAsync(source, pageRequestId: null));
     }
 
     /// <summary>
@@ -470,11 +487,11 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// <para>该调用同样会触发 <see cref="WebViewWindowOptions.ClosedAsync"/>
     /// 并将窗口移出注册表；已关闭时为无操作。</para>
     /// </remarks>
-    public void ClosePermanently() => CloseCore();
+    public void ClosePermanently() => RunOnUiThread(CloseCore);
 
     private void OnDisplayConfigurationChanged(object? sender, EventArgs eventArgs)
     {
-        if (_closedOnce) return;
+        if (IsClosed) return;
         try
         {
             WindowPlacementService.ConstrainToWorkArea(this);
@@ -592,20 +609,71 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         }
     }
 
-    private async Task NotifyClosedOnceAsync()
+    /// <summary>
+    /// 触发关闭通知（所有者注销 + 宿主回调），保证只执行一次。
+    /// </summary>
+    /// <remarks>
+    /// <para>返回的 Task 可被多个调用者 await：关闭通知有两条触发路径——<c>Closed</c> 事件的
+    /// fire-and-forget 调用，以及 <see cref="DisposeAsync"/>。若只用一个 bool 做一次性守卫，
+    /// 后到的 <see cref="DisposeAsync"/> 会因守卫已置位而立即返回，
+    /// 导致它在宿主的 <c>ClosedAsync</c> 尚未跑完时就宣告完成。</para>
+    /// <para>回调在 UI 线程上触发：宿主在 <c>ClosedAsync</c> 中常会读取
+    /// <c>WindowCount</c>／<c>Windows</c> 或操作窗口，这些都不是线程安全的。</para>
+    /// </remarks>
+    private Task NotifyClosedOnceAsync()
     {
-        if (_closedOnce) return;
-        _closedOnce = true;
-        // 先让所有者把本窗口移出注册表，再回调用户。
-        // 顺序不可颠倒：ClosedAsync 里常会读取 WindowCount / Windows（示例即如此），
-        // 若此时本窗口仍在注册表中，宿主看到的窗口数会多算一个。
-        if (_onClosed is not null) await _onClosed(this);
-        if (_closedAsync is not null) await _closedAsync(this);
+        // 快速路径：通知已启动则直接复用其 Task，避免在 Dispatcher 关闭后再排队。
+        if (Volatile.Read(ref _closedNotification) is { } started)
+        {
+            return started;
+        }
+
+        return MarshalAsync(() =>
+        {
+            // 在 UI 线程上读改写，天然串行。
+            if (Volatile.Read(ref _closedNotification) is { } existing)
+            {
+                return existing;
+            }
+
+            // 先登记 Task 再跑回调：若宿主在 ClosedAsync 里回调 DisposeAsync（重入），
+            // 上面两条快速路径会命中已登记的 Task，而不会再次触发回调造成递归。
+            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref _closedNotification, completion.Task);
+            // IsClosed 先于回调确立：宿主在回调里读到的状态应与"已关闭"一致。
+            Volatile.Write(ref _closedOnceFlag, 1);
+            _ = RunClosedCallbacksAsync(completion);
+            return completion.Task;
+        });
+    }
+
+    private async Task RunClosedCallbacksAsync(TaskCompletionSource completion)
+    {
+        Volatile.Write(ref _closedCallbackThreadId, Environment.CurrentManagedThreadId);
+        try
+        {
+            // 先让所有者把本窗口移出注册表，再回调用户。
+            // 顺序不可颠倒：ClosedAsync 里常会读取 WindowCount / Windows（示例即如此），
+            // 若此时本窗口仍在注册表中，宿主看到的窗口数会多算一个。
+            if (_onClosed is not null) await _onClosed(this);
+            if (_closedAsync is not null) await _closedAsync(this);
+            completion.SetResult();
+        }
+        catch (Exception exception)
+        {
+            // 异常经 Task 传递给等待者（DisposeAsync）；fire-and-forget 路径上
+            // 无人观察时也不会逃逸为未处理异常而终止进程。
+            completion.SetException(exception);
+        }
+        finally
+        {
+            Volatile.Write(ref _closedCallbackThreadId, 0);
+        }
     }
 
     private void CloseCore()
     {
-        if (_closedOnce) return;
+        if (IsClosed) return;
         _forceClose = true;
         _initializationCancellation?.Cancel();
         if (IsVisible) Hide();
@@ -625,9 +693,28 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// </remarks>
     public async ValueTask DisposeAsync()
     {
-        if (!_closedOnce)
+        if (!IsClosed)
         {
-            CloseCore();
+            await RunOnUiThreadAsync(() =>
+            {
+                CloseCore();
+                return Task.CompletedTask;
+            });
+        }
+
+        // 无条件等待关闭通知：若窗口是经标题栏正常关闭的，Closed 事件已启动通知，
+        // 此处复用同一个 Task 并等待其完成——否则 DisposeAsync 会在宿主的 ClosedAsync
+        // 尚未跑完时就返回（这正是「先注销再回调」顺序要保障的可见性）。
+        //
+        // 但若本方法正是从宿主的 ClosedAsync 回调内部被调用的（重入），等待该通知会自锁：
+        // 回调在等本方法返回，而本方法在等回调完成。此时跳过等待——关闭通知本就已在执行中。
+        //
+        // 该判断是**保守**的：它无法区分「回调内部的重入调用」与「回调 await 期间
+        // UI 线程上的另一次调用」。后者其实不会死锁（回调并未等待该调用者），
+        // 但也会一并跳过等待。代价仅是 DisposeAsync 可能早于 ClosedAsync 返回；
+        // 反向的误判（该跳过却没跳过）才会死锁，这里确保了不会发生。
+        if (Volatile.Read(ref _closedCallbackThreadId) != Environment.CurrentManagedThreadId)
+        {
             await NotifyClosedOnceAsync();
         }
 
@@ -638,7 +725,11 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     {
         if (Interlocked.Exchange(ref _webViewDisposed, 1) == 0)
         {
-            _webView.Dispose();
+            // WebView2 派生自 HwndHost，其 Dispose(bool) 内部同样 VerifyAccess()，
+            // 因此释放也必须回到 UI 线程——即使 DisposeAsync 是从后台线程调用的。
+            // 用 Marshal 而非 RunOnUiThread：释放是清理动作，恰恰在窗口已关闭时最需要执行，
+            // 若沿用「已关闭则跳过」的守卫会造成 WebView2 泄漏。
+            Marshal(() => _webView.Dispose());
         }
     }
 
@@ -648,4 +739,37 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private static bool IsFinitePositive(double value) => double.IsFinite(value) && value > 0;
 
     private static string GetOrigin(Uri uri) => uri.GetLeftPart(UriPartial.Authority);
+
+    /// <summary>
+    /// 把操作封送回 UI 线程执行；已在 UI 线程时同步直接执行，避免无谓的队列往返。
+    /// <b>已关闭时跳过</b>——供不希望在窗口销毁后仍排队工作的公开成员使用。
+    /// </summary>
+    /// <remarks>WPF 的 <c>Window</c>（<c>Show</c>／<c>Hide</c>／<c>Close</c>）与 <c>WebView2</c>（派生自
+    /// <c>HwndHost</c>）都是 <c>DispatcherObject</c>，其内部 <c>VerifyAccess()</c> 会对错误线程抛
+    /// <see cref="InvalidOperationException"/>。因此凡承诺「可从任意线程调用」的成员都必须经此封送。</remarks>
+    private Task RunOnUiThreadAsync(Func<Task> action) =>
+        IsClosed ? Task.CompletedTask : MarshalAsync(action);
+
+    private void RunOnUiThread(Action action)
+    {
+        if (IsClosed) return;
+        Marshal(action);
+    }
+
+    /// <summary>无条件封送回 UI 线程（<b>不</b>因已关闭而跳过）。</summary>
+    /// <remarks>关闭清理与关闭回调必须用本方法：它们恰恰在窗口已关闭时才需要执行，
+    /// 若沿用「已关闭则跳过」的守卫，会导致 WebView2 泄漏、宿主的关闭回调永不触发。</remarks>
+    private Task MarshalAsync(Func<Task> action) =>
+        Dispatcher.CheckAccess() ? action() : Dispatcher.InvokeAsync(action).Task.Unwrap();
+
+    private void Marshal(Action action)
+    {
+        if (Dispatcher.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        Dispatcher.Invoke(action);
+    }
 }

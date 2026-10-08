@@ -97,6 +97,9 @@ public sealed class WebViewShell : IAsyncDisposable
 
         try
         {
+            // InitializeAndShowAsync 自身会封送回 UI 线程（其第一步是 EnsureHandle()/Show()，
+            // 二者都经 DispatcherObject.VerifyAccess() 校验线程），因此这里可直接 await，
+            // 无需再包一层 InvokeAsync。
             await window.InitializeAndShowAsync(token);
         }
         catch
@@ -104,6 +107,7 @@ public sealed class WebViewShell : IAsyncDisposable
             // 窗口创建/初始化本身失败：此时窗口不可用，必须回收，否则会残留一个
             // 没有 WebView 的空壳窗口。DisposeAsync 内部会经 OnWindowClosed 移除注册，
             // 这里再显式移除一次以覆盖「窗口尚未进入关闭流程」的路径（Remove 幂等）。
+            // DisposeAsync 自身也已封送，故此处不必再切线程。
             await RemoveAsync(windowId);
             await window.DisposeAsync();
             throw;
@@ -113,10 +117,15 @@ public sealed class WebViewShell : IAsyncDisposable
     }
 
     /// <summary>请求关闭指定窗口。窗口经裁决拒绝关闭时，仍保留在管理器中。</summary>
+    /// <remarks>可从任意线程调用：注册表读取会自动切回 UI 线程。</remarks>
     public async Task CloseAsync(string id, string source = "Service")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        if (!_windows.TryGetValue(id, out var window))
+        // 在 UI 线程上读取：注册表由 UI 线程独占写入（见 OpenAsync），
+        // 从其他线程直接 TryGetValue 会与增删并发，Dictionary 不是线程安全的。
+        var window = await _dispatcher.InvokeAsync(
+            () => _windows.TryGetValue(id, out var found) ? found : null);
+        if (window is null)
         {
             return;
         }
@@ -147,6 +156,7 @@ public sealed class WebViewShell : IAsyncDisposable
     private Task OnWindowClosed(WebViewWindow window) => RemoveAsync(window.Id);
 
     /// <summary>释放所有窗口与 WebView2 环境。</summary>
+    /// <remarks>可从任意线程调用：注册表快照在 UI 线程上获取。</remarks>
     public async ValueTask DisposeAsync()
     {
         // Interlocked 保证并发的 DisposeAsync 只有一个真正执行释放。
@@ -155,7 +165,11 @@ public sealed class WebViewShell : IAsyncDisposable
             return;
         }
 
-        foreach (var window in _windows.Values.ToArray())
+        // 先取快照再逐个释放：迭代过程中每个窗口的 DisposeAsync 会经 OnWindowClosed
+        // 把自己移出注册表，直接遍历 _windows.Values 会「遍历时修改集合」。
+        // 快照本身也必须在 UI 线程取，理由同 CloseAsync。
+        var windows = await _dispatcher.InvokeAsync(() => _windows.Values.ToArray());
+        foreach (var window in windows)
         {
             // 每个窗口的 DisposeAsync 会经 OnWindowClosed 把自己移出注册表。
             await window.DisposeAsync();

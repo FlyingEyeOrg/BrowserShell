@@ -142,9 +142,16 @@ public sealed class WebViewShell : IAsyncDisposable
 
 **线程模型**
 
-- 窗口 UI 操作必须在传入的 `Dispatcher` 上；`OpenAsync` 内部切回 UI 线程，故可从任意线程调用。
-- 注册表操作（增 / 删 / 清空）**统一在 UI 线程执行**，非 UI 线程调用时自动切换。因此
-  `WindowCount` / `Windows` / `TryGetWindow` 应在 UI 线程读取。
+- 窗口 UI 操作必须在传入的 `Dispatcher` 上。WPF 的 `Window`（`Show`／`Hide`／`Close`）与
+  `WebView2`（派生自 `HwndHost`）都是 `DispatcherObject`，其内部 `VerifyAccess()`
+  会对错误线程抛 `InvalidOperationException`。
+- 下列成员**自动封送回 UI 线程**，故可从任意线程调用（已在 UI 线程时同步直接执行）：
+  `OpenAsync`、`CloseAsync`、`ClosePermanently`、`DisposeAsync`。
+- `OpenAsync` 的**窗口构造、`InitializeAndShowAsync` 与失败回收路径**均在 UI 线程回调内完成。
+  早期版本只把「构造」放进 `InvokeAsync`，导致从后台线程调用时
+  `EnsureHandle()`／`Show()` 抛异常——这已修复。
+- 注册表操作（增 / 删 / 清空 / **读**）**统一在 UI 线程执行**，非 UI 线程调用时自动切换。
+  `WindowCount` / `Windows` / `TryGetWindow` 是**无封送的属性访问**，仍应在 UI 线程读取。
 - `DisposeAsync` 与 `OpenAsync` 并发时，以 `Interlocked` 一次性转移保证只释放一次。
 
 ### 3.2 `WebViewWindow`
@@ -599,6 +606,36 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 **处理**：**待确认（决策点 D-B）**——宿主是否可能承载第三方页面？
 - 若仅承载自有页面：不处理，保持简单；
 - 若可能承载第三方：用 `eventArgs.Source` 做来源校验。
+
+### 6.8 线程封送缺失（严重，已修复）
+
+**现象**：文档承诺 `OpenAsync`「内部切回 UI 线程，故可从任意线程调用」，
+但 `InvokeAsync` 只包住了窗口**构造**，`InitializeAndShowAsync` 在闭包**外**执行。
+而它的第一步就是 `EnsureHandle()` / `Show()`，二者均经
+`DispatcherObject.VerifyAccess()` 校验线程（WPF 源码已核实：`Window.Show/Hide/Close`
+与 `HwndHost.Dispose(bool)` 都调用 `VerifyAccess()`，失败抛 `InvalidOperationException`）。
+
+**后果**：从后台线程调 `OpenAsync` 会在 `EnsureHandle()` 抛异常；
+`CloseAsync` / `DisposeAsync` 同样无法按文档所述从任意线程调用。
+
+**修复**（已实施）：
+- 新增 `MarshalAsync` / `Marshal`（无条件封送）与 `RunOnUiThreadAsync` / `RunOnUiThread`
+  （封送，且已关闭时跳过），区分「公开成员」与「关闭清理」两类语义。
+- `InitializeAndShowAsync`、`CloseAsync`、`ClosePermanently`、`DisposeAsync` 内部自动封送。
+- `DisposeWebViewOnce` 用**无条件**封送：释放恰在窗口已关闭时最需要执行，
+  若沿用「已关闭则跳过」的守卫会造成 WebView2 泄漏。
+- `WebViewShell.CloseAsync` / `DisposeAsync` 的注册表**读取**也切回 UI 线程
+  （`Dictionary` 非线程安全）。
+
+**同批修复的并发问题**：
+- `NotifyClosedOnceAsync` 原为「检查再赋值」，两条触发路径（`Closed` 事件与
+  `DisposeAsync`）并发时可能重复触发宿主的 `ClosedAsync`；改为复用同一个通知 Task。
+- 由此消除了「`DisposeAsync` 在宿主 `ClosedAsync` 尚未跑完时即返回」的窗口。
+- 引入重入保护：宿主在 `ClosedAsync` 内调 `DisposeAsync` 时不得等待该回调自身的通知，
+  否则自锁（该场景已用可复现的并发测试验证：旧写法死锁、新写法通过）。
+
+**验收**：从后台线程调用 `OpenAsync` / `CloseAsync` / `DisposeAsync` 均不抛
+`InvalidOperationException`；并发 8 路 `DisposeAsync` 时宿主 `ClosedAsync` 恰好回调一次。
 
 ---
 
