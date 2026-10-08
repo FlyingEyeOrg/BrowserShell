@@ -60,7 +60,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         Visibility = Visibility.Hidden,
     };
     private readonly Grid _presentationRoot = new() { Background = Brushes.White };
-    private readonly Border _initializationSurface = CreateInitializationSurface();
+    private readonly Border _initializationSurface = WebViewWindowPresentation.CreateLoadingSurface();
     private readonly CoreWebView2Environment _environment;
     private readonly CoreWebView2ControllerOptions _controllerOptions;
     private readonly WebView2InitializationCoordinator _webViewInitialization;
@@ -251,7 +251,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
             }
         };
         await core.AddScriptToExecuteOnDocumentCreatedAsync(WebViewPresentationMask.InitializationScript);
-        await core.AddScriptToExecuteOnDocumentCreatedAsync(CreateWindowBridgeScript(Id));
+        await core.AddScriptToExecuteOnDocumentCreatedAsync(WebViewWindowBridge.CreateScript(Id));
         core.WebMessageReceived += (_, eventArgs) => _ = HandleBridgeMessageAsync(eventArgs.WebMessageAsJson);
 
         var targetUrl = _options.Url;
@@ -306,43 +306,8 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     }
 
     /// <summary>把 WebView2 初始化失败的原因显示在窗口内容区，替代加载指示。</summary>
-    private void ShowInitializationFailure(Exception exception)
-    {
-        var content = new StackPanel
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            MaxWidth = 520,
-            Margin = new Thickness(24),
-        };
-        content.Children.Add(new TextBlock
-        {
-            Text = "无法初始化 WebView2",
-            FontSize = 15,
-            FontWeight = FontWeights.SemiBold,
-            Foreground = Brushes.Firebrick,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-        content.Children.Add(new TextBlock
-        {
-            Text = exception.Message,
-            Margin = new Thickness(0, 8, 0, 0),
-            TextWrapping = TextWrapping.Wrap,
-            TextAlignment = TextAlignment.Center,
-            Foreground = Brushes.DimGray,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-        content.Children.Add(new TextBlock
-        {
-            Text = "请确认已安装 WebView2 Runtime。",
-            Margin = new Thickness(0, 12, 0, 0),
-            Foreground = Brushes.Gray,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        });
-        _initializationSurface.Child = content;
-        _initializationSurface.Visibility = Visibility.Visible;
-        _webView.Visibility = Visibility.Collapsed;
-    }
+    private void ShowInitializationFailure(Exception exception) =>
+        WebViewWindowPresentation.ShowFailure(_initializationSurface, _webView, exception);
 
     /// <summary>
     /// 以新的设置原位更新窗口外观（标题、尺寸、最小尺寸、置顶、任务栏、可调整大小、标题栏样式与配色）。
@@ -683,72 +648,4 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private static bool IsFinitePositive(double value) => double.IsFinite(value) && value > 0;
 
     private static string GetOrigin(Uri uri) => uri.GetLeftPart(UriPartial.Authority);
-
-    /// <summary>注入页面侧窗口控制桥，供页面脚本最小化、最大化、还原与请求关闭。</summary>
-    private static string CreateWindowBridgeScript(string windowId)
-    {
-        var windowIdJson = JsonSerializer.Serialize(windowId);
-        return $$"""
-        (() => {
-          const send = (operation, value, requestId) => chrome.webview.postMessage({
-            type: 'shellWindow', operation, value: value ?? null, requestId: requestId ?? null
-          });
-          const closeRequests = new Map();
-          chrome.webview.addEventListener('message', event => {
-            const message = event.data;
-            if (message?.type !== 'shellWindowCloseResult') return;
-            const resolve = closeRequests.get(message.requestId);
-            if (!resolve) return;
-            closeRequests.delete(message.requestId);
-            resolve(Object.freeze({
-              accepted: message.accepted === true,
-              code: message.code ?? null,
-              message: message.message ?? null
-            }));
-          });
-          const current = globalThis.browserShell ?? {};
-          Object.defineProperty(globalThis, 'browserShell', {
-            configurable: true,
-            value: Object.freeze({ ...current, window: Object.freeze({
-              windowId: {{windowIdJson}},
-              minimize: () => send('minimize'),
-              maximize: () => send('maximize'),
-              restore: () => send('restore'),
-              close: () => new Promise(resolve => {
-                const requestId = crypto.randomUUID();
-                closeRequests.set(requestId, resolve);
-                send('close', 'Page', requestId);
-              })
-            }) })
-          });
-        })();
-        """;
-    }
-
-    private static Border CreateInitializationSurface()
-    {
-        var progress = new ProgressBar
-        {
-            Width = 180,
-            Height = 3,
-            IsIndeterminate = true,
-            Margin = new Thickness(0, 0, 0, 12),
-        };
-        var label = new TextBlock
-        {
-            Text = "正在加载…",
-            FontFamily = new FontFamily("Segoe UI"),
-            FontSize = 13,
-            Foreground = Brushes.DimGray,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        var content = new StackPanel
-        {
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        content.Children.Add(progress);
-        content.Children.Add(label);
-        return new Border { Background = Brushes.White, Child = content };
-    }
 }
