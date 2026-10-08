@@ -12,9 +12,42 @@ using WindowChromeKit.Wpf;
 namespace BrowserShell.WebView.Wpf;
 
 /// <summary>
-/// 由 <see cref="ChromeWindow"/> 提供原生窗口边框与标题栏、由 WebView2 承载页面的 Web 外壳窗口。
-/// 只负责内容承载、导航与窗口级命令，不包含任何业务协议。
+/// Web 外壳窗口：由 <see cref="ChromeWindow"/> 提供原生窗口边框与标题栏、由 WebView2 承载页面。
 /// </summary>
+/// <remarks>
+/// <para><b>职责</b>：只负责内容承载、导航、加载呈现、关闭裁决与页面侧控制桥，
+/// 不包含任何业务协议（登录、权限、业务弹窗均由宿主或页面自身实现）。
+/// 原生边框、拖动、缩放、Snap Layout、DWM 阴影、DPI 与工作区约束全部由
+/// <see cref="ChromeWindow"/> 提供，本类型不重复实现。</para>
+///
+/// <para><b>创建方式</b>：构造函数为 <c>internal</c>，实例只能经
+/// <see cref="WebViewShell.OpenAsync"/> 创建。这样可保证：</para>
+/// <list type="bullet">
+///   <item><description>同一进程内共享唯一的 WebView2 环境；</description></item>
+///   <item><description><see cref="Id"/> 在管理器注册表内唯一（并因此获得独立的 Profile 隔离）；</description></item>
+///   <item><description>WebView2 Controller 的并发初始化被串行化。</description></item>
+/// </list>
+///
+/// <para><b>线程模型</b>：本类型所有成员必须在创建它的 <c>Dispatcher</c>（UI 线程）上调用。
+/// 唯一的例外是 <see cref="CloseAsync"/> 与 <see cref="DisposeAsync"/> 可从任意线程调用，
+/// 其内部关闭流程会经所有者回调切回 UI 线程维护注册表。</para>
+///
+/// <para><b>加载时序</b>：窗口先显示、内容后加载——这样 WebView2 初始化失败时窗口仍然保留，
+/// 并以内容区面板呈现失败原因，而不是让窗口"一闪即消"。
+/// 加载指示分两个阶段：首次加载期间由 WPF 层面板承担（此时 WebView 尚不可见）；
+/// 首次加载之后的每次导航由注入页面 DOM 的遮罩承担（此时 WPF 层无法覆盖原生 HWND，即空域限制）。</para>
+///
+/// <para><b>关闭语义</b>：关闭有三个来源——标题栏按钮、页面脚本的
+/// <c>browserShell.window.close()</c>、宿主的 <see cref="CloseAsync"/>。
+/// 三者统一经 <see cref="WebViewWindowOptions.ClosingAsync"/> 裁决；未提供该回调时直接关闭。
+/// 窗口真正关闭后，会先由所有者将其移出注册表，再回调
+/// <see cref="WebViewWindowOptions.ClosedAsync"/>。</para>
+///
+/// <para><b>安全默认值</b>：宿主对象访问、脚本对话框、DevTools、默认右键菜单、状态栏
+/// 一律禁用；权限请求一律拒绝、下载一律取消。即"默认拒绝，由宿主按需放开"。</para>
+/// </remarks>
+/// <seealso cref="WebViewShell"/>
+/// <seealso cref="WebViewWindowOptions"/>
 public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
 {
     private readonly WebView2 _webView = new()
@@ -85,16 +118,69 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         };
     }
 
-    /// <summary>窗口标识。同一宿主进程内唯一。</summary>
+    /// <summary>
+    /// 窗口标识。<b>在同一 <see cref="WebViewShell"/> 的注册表内唯一</b>，由
+    /// <see cref="WebViewShell.OpenAsync"/> 指定或自动生成（GUID 的 <c>N</c> 格式）。
+    /// </summary>
+    /// <remarks>
+    /// <para>该标识同时承担三项职责，因此它的唯一性不是记账问题，而是功能前提：</para>
+    /// <list type="number">
+    ///   <item><description><b>注册表键</b>：<see cref="WebViewShell.TryGetWindow"/>、
+    ///   <see cref="WebViewShell.CloseAsync"/> 与关闭时的注销都依赖它定位窗口。</description></item>
+    ///   <item><description><b>Profile 隔离种子</b>：它经 SHA-256 派生出 WebView2 的
+    ///   <c>ProfileName</c>。因此<b>相同标识会导致两个窗口共用 Cookie 与缓存</b>，隔离失效——
+    ///   这是唯一性必须被强制的根本原因。</description></item>
+    ///   <item><description><b>页面可见标识</b>：注入页面的脚本会把它暴露为
+    ///   <c>browserShell.window.windowId</c>，供同一页面被多个窗口承载时区分自身。</description></item>
+    /// </list>
+    /// <para>唯一性在 <see cref="WebViewShell.OpenAsync"/> 的 UI 线程回调内以
+    /// 查重 + <c>Add</c> 的原子方式强制；重复即时抛 <see cref="InvalidOperationException"/>。
+    /// 窗口真正关闭后该标识被释放，可再次使用。</para>
+    /// </remarks>
     public string Id { get; }
 
-    /// <summary>窗口是否已关闭。</summary>
+    /// <summary>
+    /// 窗口是否已关闭（关闭流程已走完，<see cref="WebViewWindowOptions.ClosedAsync"/> 已触发或即将触发）。
+    /// </summary>
+    /// <remarks>该值在一次生命周期内单调递增一次，关闭后不会回到 <c>false</c>。</remarks>
     public bool IsClosed => _closedOnce;
 
-    /// <summary>首次导航的失败原因；为 null 表示首次导航成功或未指定地址。</summary>
+    /// <summary>
+    /// 最近一次导航的失败原因；为 <c>null</c> 表示无已知失败。
+    /// </summary>
+    /// <remarks>
+    /// <para>下列情形会写入该值：</para>
+    /// <list type="bullet">
+    ///   <item><description>WebView2 环境/Controller 初始化失败（格式为 <c>异常类型: 消息</c>）；</description></item>
+    ///   <item><description>首次导航失败（网络不可达、DNS 失败等），值为"首次导航失败。"；</description></item>
+    ///   <item><description>首次导航超时（30 秒），值为"首次导航超时。"。</description></item>
+    /// </list>
+    /// <para><b>注意</b>：当前实现<b>不会在导航成功时重置</b>该属性，因此它表示
+    /// "曾经发生过失败"而非"当前处于失败状态"。调用方若需判断当前状态，
+    /// 应结合页面实际加载结果，或等待后续版本重置语义。</para>
+    /// <para>首次导航失败不会抛异常：窗口本身已可用，调用方可自行重试
+    /// （例如再次调用 <see cref="ReloadAsync"/>）。</para>
+    /// </remarks>
     public string? LastNavigationError { get; private set; }
 
-    /// <summary>创建 HWND、完成首次导航并显示窗口。</summary>
+    /// <summary>
+    /// 创建 HWND、完成首次导航并显示窗口。由 <see cref="WebViewShell.OpenAsync"/> 调用。
+    /// </summary>
+    /// <param name="token">取消令牌，用于取消首次导航的等待。</param>
+    /// <remarks>
+    /// <para><b>顺序约束</b>：必须先 <c>EnsureHandle()</c> 创建原生 HWND 并让 DWM 接管客户区，
+    /// 再创建 WebView2 Controller。顺序颠倒会让自绘标题栏落在 DWM 尚未接管的时间点，出现绘制错位。</para>
+    ///
+    /// <para><b>失败隔离</b>：本方法<b>不因 WebView2 初始化失败而抛出</b>。窗口已先显示，
+    /// 失败时改为在内容区呈现失败面板（含原因与"请确认已安装 WebView2 Runtime"提示），
+    /// 避免窗口一闪即消。失败原因同时记入 <see cref="LastNavigationError"/>。</para>
+    ///
+    /// <para><b>取消语义</b>：若初始化过程中已确认关闭（<c>_forceClose</c>），
+    /// 由此产生的 <see cref="OperationCanceledException"/> 被视为正常取消而非失败。</para>
+    ///
+    /// <para>首次导航成功后触发 <see cref="WebViewWindowOptions.OpenedAsync"/>；
+    /// 若窗口在此期间已关闭，则不再触发。</para>
+    /// </remarks>
     public async Task InitializeAndShowAsync(CancellationToken token = default)
     {
         _initializationCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -258,7 +344,18 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         _webView.Visibility = Visibility.Collapsed;
     }
 
-    /// <summary>以新的设置原位更新窗口外观，需要时由调用方另行导航。</summary>
+    /// <summary>
+    /// 以新的设置原位更新窗口外观（标题、尺寸、最小尺寸、置顶、任务栏、可调整大小、标题栏样式与配色）。
+    /// </summary>
+    /// <param name="options">新的设置。</param>
+    /// <remarks>
+    /// <para><b>不会触发导航</b>：<see cref="WebViewWindowOptions.Url"/> 在此被忽略，
+    /// 需要跳转时请另行调用 <see cref="NavigateAsync"/>。</para>
+    /// <para><b>会同步生效的还有</b>：<see cref="WebViewWindowOptions.AllowedOrigins"/>
+    /// （替换同源白名单）。</para>
+    /// <para><b>不会生效的</b>：<see cref="WebViewWindowOptions.ClosingAsync"/> 等回调在构造时
+    /// 已捕获，此处替换设置不影响它们。</para>
+    /// </remarks>
     public void ApplyOptions(WebViewWindowOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -276,7 +373,17 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         TitleBarPalette = options.TitleBarPalette;
     }
 
-    /// <summary>导航到绝对地址，受 AllowedOrigins 约束。</summary>
+    /// <summary>导航到绝对地址，受 <see cref="WebViewWindowOptions.AllowedOrigins"/> 约束。</summary>
+    /// <param name="target">目标绝对地址。</param>
+    /// <exception cref="ArgumentNullException"><paramref name="target"/> 为 <c>null</c>。</exception>
+    /// <exception cref="InvalidOperationException">目标 Origin 不在允许列表内。</exception>
+    /// <remarks>
+    /// <para><b>本方法立即返回，不等待导航完成</b>——它只是发起导航。
+    /// 需要感知加载结果时，请自行在页面内监听，或依赖 <see cref="LastNavigationError"/>。</para>
+    /// <para>白名单为空时不限制；非空时在此处<b>主动校验并抛异常</b>，
+    /// 而 WebView2 侧的 <c>NavigationStarting</c> 另有拦截作为第二道防线
+    /// （覆盖页面内部发起的跳转）。</para>
+    /// </remarks>
     public Task NavigateAsync(Uri target)
     {
         ArgumentNullException.ThrowIfNull(target);
@@ -290,6 +397,12 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     }
 
     /// <summary>重新加载当前页面。</summary>
+    /// <remarks>
+    /// <para><b>立即返回，不等待加载完成。</b></para>
+    /// <para>重载会触发注入脚本重新执行，因此加载遮罩会再次出现并在导航完成后揭开。
+    /// 若目标页面为深色而 <see cref="WebViewWindowOptions"/> 未指定匹配的底色，
+    /// 重载瞬间可能出现白色闪烁。</para>
+    /// </remarks>
     public Task ReloadAsync()
     {
         _webView.Reload();
@@ -297,13 +410,21 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     }
 
     /// <summary>设置窗口标题。</summary>
+    /// <remarks>
+    /// 等价于直接给继承自 <see cref="ChromeWindow"/> 的 <c>Title</c> 属性赋值；
+    /// <paramref name="title"/> 为 <c>null</c> 时置为空字符串。
+    /// </remarks>
     public Task SetTitleAsync(string title)
     {
         Title = title ?? string.Empty;
         return Task.CompletedTask;
     }
 
-    /// <summary>显示窗口并置于前台。</summary>
+    /// <summary>显示窗口、约束到当前工作区并置于前台。</summary>
+    /// <remarks>
+    /// 与继承自 <see cref="ChromeWindow"/> 的 <c>Show()</c> 相比，
+    /// 额外做了工作区约束与激活，适合窗口曾被移到已拔掉的显示器后重新显示的场景。
+    /// </remarks>
     public Task ShowWindowAsync()
     {
         Show();
@@ -312,7 +433,8 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /// <summary>隐藏窗口但保留 HWND 与 WebView2。</summary>
+    /// <summary>隐藏窗口，但保留 HWND、WebView2 实例与页面状态（不触发卸载）。</summary>
+    /// <remarks>与 <see cref="CloseAsync"/> 不同：隐藏后窗口仍在注册表中，可再次显示。</remarks>
     public Task HideAsync()
     {
         Hide();
@@ -320,6 +442,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     }
 
     /// <summary>最小化窗口。</summary>
+    /// <remarks>等价于设置继承自 <see cref="ChromeWindow"/> 的 <c>WindowState</c>；不改变 <see cref="IsClosed"/>。</remarks>
     public Task MinimizeAsync()
     {
         WindowState = WindowState.Minimized;
@@ -327,13 +450,21 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     }
 
     /// <summary>最大化窗口。</summary>
+    /// <remarks>等价于设置继承自 <see cref="ChromeWindow"/> 的 <c>WindowState</c>；
+    /// 当 <see cref="WebViewWindowOptions.Resizable"/> 为 <c>false</c> 时最大化为无效操作。</remarks>
     public Task MaximizeAsync()
     {
         WindowState = WindowState.Maximized;
         return Task.CompletedTask;
     }
 
-    /// <summary>从最大化或最小化恢复。</summary>
+    /// <summary>从最大化或最小化状态恢复到普通状态，并把窗口约束回当前工作区。</summary>
+    /// <remarks>
+    /// 比单独设置 <c>WindowState = Normal</c> 多一步工作区约束，
+    /// 用于避免窗口恢复后停留在已拔掉的显示器上而不可见。
+    /// <para><b>与页面桥的差异</b>：页面脚本的 <c>browserShell.window.restore()</c>
+    /// 当前<b>只</b>设置窗口状态、不执行工作区约束，两者行为不完全一致。</para>
+    /// </remarks>
     public Task RestoreAsync()
     {
         WindowState = WindowState.Normal;
@@ -341,7 +472,18 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         return Task.CompletedTask;
     }
 
-    /// <summary>请求关闭窗口。若设置了 ClosingAsync，由其裁决。</summary>
+    /// <summary>请求关闭窗口；是否真正关闭由 <see cref="WebViewWindowOptions.ClosingAsync"/> 裁决。</summary>
+    /// <param name="source">关闭来源标识，会作为 <see cref="WebViewWindowClosingContext.Source"/>
+    /// 传给裁决回调。宿主可传自定义值，以便业务区分主动关闭与用户操作。</param>
+    /// <remarks>
+    /// <para><b>可能被拒绝</b>：提供了 <c>ClosingAsync</c> 且其返回 <c>false</c> 时，窗口保持打开。
+    /// 此时窗口<b>仍保留在 <see cref="WebViewShell"/> 的注册表中</b>，
+    /// <see cref="IsClosed"/> 保持 <c>false</c>。</para>
+    /// <para><b>幂等</b>：窗口已关闭时直接返回，不抛异常。</para>
+    /// <para>未提供 <c>ClosingAsync</c> 时直接关闭，不经过裁决。</para>
+    /// <para>关闭真正发生后，所有者先将其移出注册表，再回调
+    /// <see cref="WebViewWindowOptions.ClosedAsync"/>（因此回调内读到的窗口计数已更新）。</para>
+    /// </remarks>
     public async Task CloseAsync(string source = "Service")
     {
         if (_closedOnce) return;
@@ -354,7 +496,15 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         await RequestCloseAsync(source, pageRequestId: null);
     }
 
-    /// <summary>不经过裁决直接关闭窗口。</summary>
+    /// <summary>
+    /// <b>不经过关闭裁决</b>直接关闭窗口。
+    /// </summary>
+    /// <remarks>
+    /// <para>用于宿主确知必须无条件关闭的场景（例如整体退出、紧急回收）。
+    /// 常规关闭请用 <see cref="CloseAsync"/>，以便业务方有机会拦截。</para>
+    /// <para>该调用同样会触发 <see cref="WebViewWindowOptions.ClosedAsync"/>
+    /// 并将窗口移出注册表；已关闭时为无操作。</para>
+    /// </remarks>
     public void ClosePermanently() => CloseCore();
 
     private void OnDisplayConfigurationChanged(object? sender, EventArgs eventArgs)
@@ -498,7 +648,16 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         Close();
     }
 
-    /// <summary>关闭窗口并释放 WebView2。</summary>
+    /// <summary>
+    /// 关闭窗口并释放 WebView2 资源。<b>不经过关闭裁决</b>。
+    /// </summary>
+    /// <remarks>
+    /// <para>与 <see cref="CloseAsync"/> 的区别：本方法是"强制清理"，忽略
+    /// <see cref="WebViewWindowOptions.ClosingAsync"/> 的裁决结果。</para>
+    /// <para>可由任意线程调用：内部会切回 UI 线程维护注册表。
+    /// 重复调用是安全的（窗口与 WebView2 的释放各自幂等）。</para>
+    /// <para>通常由 <see cref="WebViewShell.DisposeAsync"/> 统一调用，宿主一般无需直接使用。</para>
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
         if (!_closedOnce)
