@@ -207,6 +207,7 @@ public sealed class WebViewWindowOptions
 
     // —— 外观（3.0.0 新增）——
     public Color BackgroundColor { get; init; } = Colors.White;
+    public ImageSource? Icon { get; init; }                          // 仅作用于本窗口
 
     // —— 安全 ——
     public IReadOnlyList<string> AllowedOrigins { get; init; } = [];   // 空 = 不限制
@@ -227,6 +228,19 @@ public sealed class WebViewWindowOptions
 | `WebView2.DefaultBackgroundColor` | `Color.White`（`WebViewWindow.cs:22`） | `BackgroundColor` |
 | `_presentationRoot` 背景 | `Brushes.White`（`:29`） | `BackgroundColor` |
 | 注入遮罩背景 | `'#ffffff'`（`WebViewPresentationMask.cs:25`） | `BackgroundColor`（脚本参数化） |
+
+**`Icon` 是第二个新增配置项**，用于在**创建时**确定**本窗口**的图标：
+
+| 项 | 说明 |
+|---|---|
+| 作用范围 | **仅当前窗口**。不修改 exe 内嵌图标，不影响同进程其他窗口；每个窗口可有各自图标 |
+| 取值优先级 | ① 本属性 → ② exe 内嵌图标 → ③ 系统默认图标（WPF 定义，已核对其源码注释） |
+| 为 null 时 | 不赋值，保留 WPF 回退链（不覆盖为 null，避免干扰 exe 图标回退） |
+| 为何放进 Options | 图标本应在窗口显示前确定。创建后再赋 `WebViewWindow.Icon` 会有一帧"默认图标 → 目标图标"的跳变 |
+| 释放责任 | 本库不释放，调用方负责（与 WPF 一致：`Window` 关闭时不释放 `Icon`） |
+
+> **建议用法**：`BitmapImage` 需设 `BitmapCacheOption.OnLoad` 并 `Freeze()`，
+> 否则对象持有文件句柄，图标文件在窗口存活期间无法删除或替换（已实测确认）。
 
 ### 3.4 `WebViewWindowClosingContext`
 
@@ -375,7 +389,7 @@ public sealed class WebViewWindowClosingContext
 |---|---|
 | 删除公开成员 | **7**（6 个包装 + `ClosePermanently`） |
 | 收回 `internal` | **3**（`ApplyOptions`、`InitializeAndShowAsync`、`WebViewWindowEnvironment`） |
-| 新增公开成员 | **1**（`BackgroundColor`） |
+| 新增公开成员 | **2**（`BackgroundColor`、`Icon`） |
 | 净减代码 | 约 **41 行**（33 包装体 + 2 `ClosePermanently` + 6 `PostVisibility`） |
 
 > 净减口径为**实际删除的方法体行数**，不含 XML 注释（含注释时包装部分为 39 行）。

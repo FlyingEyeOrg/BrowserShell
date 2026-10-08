@@ -161,6 +161,9 @@ public partial class MainWindow : ChromeWindow
                 // 与 demo.html 的深色底一致：底色贯通 WebView 默认底色、窗口内容根与加载
                 // 遮罩三处，使加载期间不出现白色闪烁（深色页面配白色底板即为白闪）。
                 BackgroundColor = System.Windows.Media.Color.FromRgb(0x1B, 0x1B, 0x1F),
+                // 本窗口图标：在创建时传入，避免"先出默认图标再跳出图标"的闪烁。
+                // 故意用 Windows7 风格，与主窗口的 Windows10 不同，以便看出图标是每窗口独立的。
+                Icon = WindowChromeIcons.Windows7,
                 // 不指定标题栏样式，使用 WebViewWindowOptions 的默认值（Chrome）。
             });
 

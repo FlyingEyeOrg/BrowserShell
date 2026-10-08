@@ -372,6 +372,13 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         ShowInTaskbar = options.ShowInTaskbar;
         TitleBarStyle = options.TitleBarStyle;
         TitleBarPalette = options.TitleBarPalette;
+        // 仅作用于本窗口：不触碰 exe 内嵌图标，也不影响同进程的其他窗口。
+        // 为 null 时不赋值，保留 WPF 的回退链（exe 内嵌图标 → 系统默认图标）。
+        if (options.Icon is { } icon)
+        {
+            Icon = icon;
+        }
+
         ApplyBackgroundColor(options.BackgroundColor);
     }
 

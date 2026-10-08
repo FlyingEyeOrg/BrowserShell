@@ -46,6 +46,40 @@ public sealed class WebViewWindowOptions
     public ChromeTitleBarPalette TitleBarPalette { get; init; } = ChromeTitleBarPalette.Default;
 
     /// <summary>
+    /// <b>本窗口</b>的图标（标题栏左上角、任务栏、Alt+Tab 与窗口切换器使用同一个）。
+    /// 为 <c>null</c> 时回退为 exe 内嵌图标，再回退为系统默认图标。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>作用范围仅限本窗口</b>：它不修改 exe 内嵌图标，也不影响同一进程中其他窗口。
+    /// 每个窗口可有各自的图标。exe 图标由项目的 <c>&lt;ApplicationIcon&gt;</c> 决定，
+    /// 与本属性无关。</para>
+    ///
+    /// <para><b>取值优先级</b>（WPF 定义，已核实其源码注释）：</para>
+    /// <list type="number">
+    ///   <item><description>本属性提供的 <see cref="ImageSource"/>；</description></item>
+    ///   <item><description>否则用 exe 内嵌图标（此时读取本属性返回 <c>null</c>）；</description></item>
+    ///   <item><description>否则交给系统默认图标。</description></item>
+    /// </list>
+    ///
+    /// <para><b>在创建时传入的好处</b>：本属性经 <see cref="WebViewWindowOptions"/> 在窗口显示前生效，
+    /// 因此不会出现"窗口先以无图标/默认图标出现、随后图标再跳出"的闪烁。
+    /// 若在窗口创建后再给 <c>WebViewWindow.Icon</c> 赋值，则会有这一帧跳变。</para>
+    ///
+    /// <para><b>建议做法</b>：用 <c>BitmapImage</c> 加载并设置 <c>BitmapCacheOption.OnLoad</c>，
+    /// 否则该对象会持有文件句柄，导致图标文件在窗口存活期间无法删除或替换：</para>
+    /// <code>
+    /// var icon = new BitmapImage();
+    /// icon.BeginInit();
+    /// icon.CacheOption = BitmapCacheOption.OnLoad;   // 关键：立即读入，不锁定文件
+    /// icon.UriSource = new Uri("pack://application:,,,/Assets/app.ico");
+    /// icon.EndInit();
+    /// icon.Freeze();                                 // 跨线程共享与性能更佳
+    /// </code>
+    /// <para>本类型<b>不负责释放</b>该对象（与 WPF 一致：<c>Window</c> 关闭时不释放 <c>Icon</c>）。</para>
+    /// </remarks>
+    public ImageSource? Icon { get; init; }
+
+    /// <summary>
     /// 未加载出内容期间的窗口底色，默认白色。承载深色页面时应设为与页面一致的深色，以消除白闪。
     /// </summary>
     /// <remarks>
