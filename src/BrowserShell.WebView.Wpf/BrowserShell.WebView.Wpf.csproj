@@ -5,7 +5,12 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>BrowserShell.WebView.Wpf</AssemblyName>
     <RootNamespace>BrowserShell.WebView.Wpf</RootNamespace>
-    <Description>BrowserShell：在 WindowChromeKit 的 ChromeWindow 上承载 WebView2 的桌面 Web 外壳类库。</Description>
+    <PackageId>BrowserShell.WebView.Wpf</PackageId>
+    <Authors>FlyingEyeOrg</Authors>
+    <Title>BrowserShell.WebView.Wpf</Title>
+    <Description>BrowserShell：在 WindowChromeKit 的 ChromeWindow 上承载 WebView2 的桌面 Web 外壳类库。提供窗口创建与跟踪、导航、加载呈现、关闭裁决与页面控制桥；不含任何业务协议。需要 Windows 10 及以上（含 Windows 11）。</Description>
+    <PackageTags>WebView2;WPF;Window;Shell;Desktop</PackageTags>
+    <PackageProjectUrl>https://github.com/FlyingEyeOrg/BrowserShell</PackageProjectUrl>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <PackageReadmeFile>README.md</PackageReadmeFile>

@@ -16,6 +16,6 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/FlyingEyeOrg/browser-shell.git</RepositoryUrl>
+    <RepositoryUrl>https://github.com/FlyingEyeOrg/BrowserShell.git</RepositoryUrl>
   </PropertyGroup>
 </Project>

@@ -131,6 +131,30 @@ BrowserShell.Service.SDK ──> 不引用 WPF
 
 `BrowserShell.Service.SDK` 保持 `net8.0` 且无 WPF 依赖，因此 ASP.NET Core 服务引用它不会引入桌面依赖链。
 
+## NuGet 自动发布
+
+仓库默认不在本地跑 CI；发布工作流会在打包前执行 Release 构建与全部测试，避免发布无效包。
+
+自动发布使用 **NuGet.org Trusted Publishing**（OIDC）。NuGet Policy 中的仓库、
+`publish-nuget.yml` 工作流和 `production` environment 必须与本仓库一致；
+**不需要配置永久的 `NUGET_API_KEY` secret**。推送 `v` 开头的 SemVer 标签即可发布：
+
+```powershell
+git tag v2.0.1
+git push origin v2.0.1
+```
+
+也可在 Actions 页面手动运行该工作流，并可填写 `package_version` 覆盖版本号
+（留空时使用各项目 csproj 中的 `Version`）。工作流产出两个包及对应 `.snupkg`：
+
+| 包 | 目标框架 |
+|---|---|
+| `BrowserShell.WebView.Wpf` | `net8.0-windows` |
+| `BrowserShell.Service.SDK` | `net8.0` |
+
+两个包的版本线**相互独立**，tag 只作为触发条件、不决定版本号。已存在的版本由
+`--skip-duplicate` 安全跳过。
+
 ## 状态
 
 迁移自 `SoftwareHub.DesktopAgent`（1.0.4），本仓库版本 `2.0.0`。

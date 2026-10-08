@@ -6,6 +6,10 @@
     <AssemblyName>BrowserShell.Service.SDK</AssemblyName>
     <RootNamespace>BrowserShell.Service.SDK</RootNamespace>
     <Description>BrowserShell 窗口能力 SDK：服务通过它打开与管理桌面窗口。</Description>
+    <Authors>FlyingEyeOrg</Authors>
+    <Title>BrowserShell.Service.SDK</Title>
+    <PackageTags>BrowserShell;Window;SDK;SignalR;Desktop</PackageTags>
+    <PackageProjectUrl>https://github.com/FlyingEyeOrg/BrowserShell</PackageProjectUrl>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!-- 生命周期重载按有/无强类型委托明确区分；保留默认 CancellationToken 的调用体验。 -->
