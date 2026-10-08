@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       package_version:
-        description: "手动发布的包版本，例如 1.0.1；留空时使用各项目中的 Version"
+        description: "手动发布的包版本，例如 2.0.1；留空时使用 csproj 中的 Version"
         required: false
         type: string
 
@@ -35,13 +35,14 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Determine package versions
+      - name: Determine package version
         id: version
         shell: pwsh
         run: |
-          # 两个包的版本线相互独立：各自按自己 csproj 里的 Version 发布。
+          # 只发布 BrowserShell.WebView.Wpf；BrowserShell.Service.SDK 不发布（不进入 pack/push），
+          # 但仍参与下面的 restore/build，以免它在仓库里静默损坏。
           # tag（v*）只作为触发条件，不决定版本号；手动 dispatch 时填的 package_version
-          # 会同时覆盖两个包的版本（发应急版本用）。
+          # 会覆盖 csproj 中的 Version（发应急版本用）。
           function Get-PackageVersion([string]$projectPath) {
               [xml]$project = Get-Content $projectPath
               return [string]$project.Project.PropertyGroup.Version
@@ -49,27 +50,22 @@ jobs:
 
           $override = "${{ inputs.package_version }}".Trim()
           if ($override) {
-              $webViewVersion = $override
-              $sdkVersion = $override
+              $version = $override
           }
           else {
-              $webViewVersion = Get-PackageVersion "src/BrowserShell.WebView.Wpf/BrowserShell.WebView.Wpf.csproj"
-              $sdkVersion = Get-PackageVersion "src/BrowserShell.Service.SDK/BrowserShell.Service.SDK.csproj"
+              $version = Get-PackageVersion "src/BrowserShell.WebView.Wpf/BrowserShell.WebView.Wpf.csproj"
           }
 
-          foreach ($version in @($webViewVersion, $sdkVersion)) {
-              if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-                  throw "无效的 NuGet 版本：$version"
-              }
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
+              throw "无效的 NuGet 版本：$version"
           }
 
-          "webview=$webViewVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          "sdk=$sdkVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-          Write-Output "BrowserShell.WebView.Wpf=$webViewVersion  BrowserShell.Service.SDK=$sdkVersion"
+          "package=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Output "BrowserShell.WebView.Wpf=$version"
 
       # 说明：逐个项目执行 restore/build，而不是跑整个 .sln——
       # dotnet CLI 的 build/restore 一次只接受一个项目参数（MSB1008）。
-      # 这里只列需要发布的库与测试；示例项目不是发布内容，但参与构建可提前暴露破坏性变更。
+      # 示例与 Service.SDK 不是发布内容，但参与构建可提前暴露破坏性变更。
       - name: Restore
         shell: pwsh
         run: |
@@ -109,15 +105,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "test 失败" }
 
       - name: Pack BrowserShell.WebView.Wpf
-        run: dotnet pack src/BrowserShell.WebView.Wpf/BrowserShell.WebView.Wpf.csproj -c Release --no-build --no-restore -o artifacts -p:PackageVersion=${{ steps.version.outputs.webview }} -p:ContinuousIntegrationBuild=true -p:IncludeSource=true
+        run: dotnet pack src/BrowserShell.WebView.Wpf/BrowserShell.WebView.Wpf.csproj -c Release --no-build --no-restore -o artifacts -p:PackageVersion=${{ steps.version.outputs.package }} -p:ContinuousIntegrationBuild=true -p:IncludeSource=true
 
-      - name: Pack BrowserShell.Service.SDK
-        run: dotnet pack src/BrowserShell.Service.SDK/BrowserShell.Service.SDK.csproj -c Release --no-build --no-restore -o artifacts -p:PackageVersion=${{ steps.version.outputs.sdk }} -p:ContinuousIntegrationBuild=true -p:IncludeSource=true
-
-      - name: Upload NuGet packages
+      - name: Upload NuGet package
         uses: actions/upload-artifact@v4
         with:
-          name: BrowserShell-webview${{ steps.version.outputs.webview }}-sdk${{ steps.version.outputs.sdk }}
+          name: BrowserShell.WebView.Wpf-${{ steps.version.outputs.package }}
           path: |
             artifacts/*.nupkg
             artifacts/*.snupkg
@@ -134,14 +127,10 @@ jobs:
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
-          $packages = @(
-              @{ Name = "BrowserShell.WebView.Wpf"; Version = "${{ steps.version.outputs.webview }}" },
-              @{ Name = "BrowserShell.Service.SDK"; Version = "${{ steps.version.outputs.sdk }}" }
-          )
-          foreach ($package in $packages) {
-              dotnet nuget push "artifacts/$($package.Name).$($package.Version).nupkg" `
-                --source "https://api.nuget.org/v3/index.json" `
-                --api-key $env:NUGET_API_KEY `
-                --skip-duplicate
-              if ($LASTEXITCODE -ne 0) { throw "$($package.Name) $($package.Version) 推送失败（退出码 $LASTEXITCODE）" }
-          }
+          $name = "BrowserShell.WebView.Wpf"
+          $version = "${{ steps.version.outputs.package }}"
+          dotnet nuget push "artifacts/$name.$version.nupkg" `
+            --source "https://api.nuget.org/v3/index.json" `
+            --api-key $env:NUGET_API_KEY `
+            --skip-duplicate
+          if ($LASTEXITCODE -ne 0) { throw "$name $version 推送失败（退出码 $LASTEXITCODE）" }
