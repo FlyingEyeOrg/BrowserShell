@@ -1,572 +1,110 @@
 # BrowserShell.WebView.Wpf 设计文档
 
-状态：**讨论稿**（职责边界与待决事项尚未定案，见第七、八节）
-适用版本：`2.0.0`
+状态：**设计稿**（待评审；评审通过后再开发）
+目标版本：**3.0.0**（含破坏性 API 变更）
+当前版本：2.0.0
 最后核对：以当前 `HEAD` 源码为准，行数与调用点均经实际检索
-
-> 本版已落实一项决定：**删除无生产调用点的输入门控三件套**（见 7.1），
-> 库规模由 9 文件 / 1211 行降至 **6 文件 / 1044 行**。
 
 ---
 
 ## 一、定位
 
-`BrowserShell.WebView.Wpf` 是一个 **Windows 桌面 Web 套壳类库**：把 WebView2 承载到一个
-原生 WPF 窗口里，并把它包装成"可被宿主程序批量打开、跟踪、关闭"的窗口单元。
+### 1.1 一句话定义
 
-一句话概括职责：
+> **`BrowserShell.WebView.Wpf` 把一段 URL 变成一个可用的桌面窗口，并把窗口级操作反向暴露给页面。**
 
-> **它负责"把网页变成一个像样的桌面窗口"，不负责"这个窗口是什么业务"。**
+它只做"**承载**"与"**窗口**"两件事，不多做。
 
-它**不是**应用框架，**不是** IPC/进程间协议层，**不是**页面业务 SDK。判断一个能力该不该
-进这个库，可以用一条标准：
+### 1.2 判断标准
 
-> 该能力是否与"承载网页并管理窗口"直接相关，且对所有宿主都成立？
+任何能力要进本库，必须**同时**满足：
 
-同时满足才进；只对部分宿主成立的（业务登录、权限、页面对话框）留在宿主侧。
+1. 与"承载网页 / 管理窗口"直接相关；
+2. 对所有宿主都成立（不依赖具体业务）。
 
-### 与周边项目的边界
+只满足其一的，一律留在宿主侧。
 
-| 项目 | TFM | 与本库的关系 |
+### 1.3 它不是什么
+
+| 不是 | 说明 |
+|---|---|
+| 不是应用框架 | 不提供 DI、模块化、生命周期编排 |
+| 不是 IPC / 进程间协议层 | 纯进程内类库，无远程会话、无认证 |
+| 不是页面业务 SDK | 不碰登录、权限、业务弹窗 |
+| 不是窗口边框库 | 原生边框/拖动/Snap/DWM 全部外包给 `WindowChromeKit` |
+| **不是 WPF 窗口 API 的二次封装** | **宿主已能从 `ChromeWindow` 继承获得的能力，本库不重复提供** |
+
+最后一条是本次设计的核心约束，它直接决定第四节要删除的 API。
+
+### 1.4 与周边项目的边界
+
+| 项目 | TFM | 关系 |
 |---|---|---|
 | `BrowserShell.WebView.Wpf` | `net8.0-windows` | 本库 |
-| `BrowserShell.Service.SDK` | `net8.0` | **无代码依赖**。两者当前互不引用 |
-| `BrowserShell.WebView.Wpf.Sample` | `net8.0-windows` | 本库的可运行示例宿主 |
+| `BrowserShell.Service.SDK` | `net8.0` | **无代码依赖**，两者互不引用 |
+| `BrowserShell.WebView.Wpf.Sample` | `net8.0-windows` | 本库示例宿主 |
 | `BrowserShell.WebView.Wpf.Tests` | `net8.0-windows` | 本库单元测试 |
 
-> 注意：`BrowserShell.Service.SDK` 描述的是"服务通过 SDK 打开桌面窗口"的**进程间**形态，
-> 那套运行时（Kestrel/SignalR 代理层）已在重构中整块删除（见 `迁移报告.md` 第七节）。
-> 因此本库当前是一个**纯进程内类库**，没有任何远程会话、协议或认证概念。文档中如出现
-> "服务"字样，均指**宿主进程**，不是远端服务。
+> `BrowserShell.Service.SDK` 描述的是"服务通过 SDK 打开桌面窗口"的**进程间**形态，
+> 其运行时（Kestrel/SignalR 代理层）已在重构中整块删除。本库因此是**纯进程内类库**。
+> 本文档中"宿主"一律指**引用本库的进程内宿主程序**。
 
 ---
 
-## 二、职责划分
+## 二、职责边界
 
 ### 2.1 本库负责
 
-| # | 职责 | 承载类型 |
+| # | 职责 | 承载 |
 |---|---|---|
 | R1 | **窗口托管**：创建、按标识跟踪、查询、关闭、统一释放 | `WebViewShell` |
-| R2 | **WebView2 环境**：进程内唯一环境、Profile 隔离、用户数据目录生命周期 | `WebViewWindowEnvironment` |
-| R3 | **串行初始化**：避免多个窗口同时进入原生初始化 | `WebView2InitializationCoordinator` |
-| R4 | **初始化时序与降级**：先出窗口后出内容、失败时保留窗口并显示原因 | `WebViewWindow` |
-| R5 | **导航**：首次导航、重新加载、同源约束、新窗口处理 | `WebViewWindow` |
-| R6 | **窗口级命令**：显示/隐藏/最小化/最大化/还原/标题/激活 | `WebViewWindow` |
-| R7 | **关闭裁决**：把关闭请求交给宿主判定，并回传结果 | `WebViewWindow` + `WebViewWindowClosingContext` |
-| R8 | **页面侧控制桥**：注入 `window.browserShell.window.*` | `WebViewWindow` |
-| R9 | **加载遮罩**：导航过程遮盖白屏与闪烁 | `WebViewPresentationMask` |
+| R2 | **WebView2 环境**：进程内唯一环境、Profile 隔离、用户数据目录生命周期 | `WebViewWindowEnvironment`（内部） |
+| R3 | **初始化时序与失败降级**：窗口先出来、失败可见、不闪退 | `WebViewWindow` |
+| R4 | **导航**：首次导航、重新加载、同源约束、新窗口处理 | `WebViewWindow` |
+| R5 | **加载呈现**：导航过程的加载指示与底色，避免白屏/白闪 | `WebViewPresentationMask` |
+| R6 | **关闭裁决**：关闭请求交宿主判定并回传结果 | `WebViewWindow` |
+| R7 | **页面侧控制桥**：注入 `window.browserShell.window.*` | `WebViewWindow` |
 
-### 2.2 本库明确不负责
+R1/R2 的初始化并发由 `WebView2InitializationCoordinator`（内部）串行化。
+
+### 2.2 本库不负责
 
 | 不负责 | 归属 |
 |---|---|
-| 原生窗口边框、拖动、缩放、Snap Layout、DWM 阴影、DPI、工作区约束 | `WindowChromeKit.Wpf` 的 `ChromeWindow` |
-| 业务登录、OAuth、Cookie、权限模型 | 宿主 / 页面自身 |
-| 页面内 UI（对话框、通知、进度） | 宿主 / 页面自身 |
-| 进程间协议、远程会话、认证、快照同步 | 不在本库；SDK 侧历史实现已移除 |
-| 多显示器布局策略（除"居中/约束到工作区"外） | 宿主 |
-| 模块化/DI 容器接入 | 宿主 |
+| 原生窗口边框、拖动、缩放、Snap、DWM 阴影、DPI | `WindowChromeKit.Wpf` 的 `ChromeWindow` |
+| 业务登录 / OAuth / Cookie / 权限模型 | 宿主或页面自身 |
+| 页面内 UI（对话框、通知、进度条） | 宿主或页面自身 |
+| 进程间协议、远程会话、认证 | 不在本库 |
+| 多显示器布局策略（除"居中 / 约束到工作区"外） | 宿主 |
+| DI 容器接入 | 宿主 |
+| **对继承自 `ChromeWindow` 的窗口操作的再包装** | **宿主直接用继承来的 API** |
 
 ### 2.3 依赖
 
 ```
 BrowserShell.WebView.Wpf  (net8.0-windows)
-  ├── Microsoft.Web.WebView2      1.0.3537.50   （WebView2 承载）
-  └── WindowChromeKit.Wpf         2.1.1         （原生窗口边框与标题栏）
+  ├── Microsoft.Web.WebView2      1.0.3537.50
+  └── WindowChromeKit.Wpf         2.1.1
 ```
 
-依赖收敛到两个包，且**不含** `Microsoft.AspNetCore.App`、SignalR、Serilog（重构时已移除）。
+仅两个包。**不含** `Microsoft.AspNetCore.App`、SignalR、Serilog。
 
 ---
 
-## 三、公开 API 契约
+## 三、目标 API（3.0.0）
 
-公开类型共 **5 个**，全部 `sealed`：
+公开类型从当前 5 个收敛为 **4 个**，全部 `sealed`。
 
-| 类型 | 角色 | 说明 |
-|---|---|---|
-| `WebViewShell` | 入口 | 外壳管理器：创建/跟踪/关闭窗口，持有进程内唯一 WebView2 环境 |
-| `WebViewWindow` | 窗口单元 | 单个外壳窗口，派生自 `ChromeWindow` |
-| `WebViewWindowOptions` | 配置 | 一次打开的完整设置 |
-| `WebViewWindowClosingContext` | 回调上下文 | 关闭裁决的输入 |
-| `WebViewWindowEnvironment` | 环境 | 底层 WebView2 环境与隔离 Profile |
+| 类型 | 角色 |
+|---|---|
+| `WebViewShell` | 入口：创建 / 跟踪 / 关闭窗口 |
+| `WebViewWindow` | 窗口单元：单个 Web 外壳窗口 |
+| `WebViewWindowOptions` | 一次打开的全部设置 |
+| `WebViewWindowClosingContext` | 关闭裁决的输入 |
 
 ### 3.1 `WebViewShell`
 
-| 成员 | 签名要点 |
-|---|---|
-| `CreateAsync` | `(Dispatcher, string? browserExecutableFolder, string? userDataFolder, CancellationToken) → Task<WebViewShell>` |
-| `OpenAsync` | `(WebViewWindowOptions, string? id, CancellationToken) → Task<WebViewWindow>` |
-| `CloseAsync` | `(string id, string source = "Service") → Task` |
-| `WindowCount` | `int` |
-| `Windows` | `IReadOnlyCollection<WebViewWindow>` |
-| `TryGetWindow` | `(string id, out WebViewWindow?) → bool` |
-| `DisposeAsync` | `ValueTask` |
-
-约定与失败语义：
-
-- `CreateAsync` 会初始化进程内唯一的 WebView2 环境；环境创建失败（未安装 Runtime 等）时抛异常。
-- `OpenAsync` 的 `id` 为 null 时自动生成 GUID（`N` 格式）。**重复 id 抛 `InvalidOperationException`。**
-- `OpenAsync` 中"创建窗口对象"与"初始化并显示"是两个阶段。第二阶段失败时，
-  窗口已从管理器移除并释放，异常继续上抛——**不会残留没有 WebView 的空壳窗口**。
-- `CloseAsync` 对**不存在的 id 静默返回**（幂等，不抛异常）。
-  它触发 `ClosingAsync` 裁决；被拒绝时窗口保持打开。
-- 创建/释放顺序：先释放全部窗口，再释放环境。
-
-### 3.2 `WebViewWindowOptions`
-
-| 属性 | 默认 | 说明 |
-|---|---|---|
-| `Url` | `null` | 首次导航地址；null 时创建空白窗口 |
-| `Title` | `null` | 为空时回退为 `Url.Host` |
-| `Width` / `Height` | `1024` / `768` | 设备无关像素 |
-| `MinWidth` / `MinHeight` | `0` | 最小尺寸 |
-| `Topmost` | `false` | 置顶 |
-| `Center` | `true` | 首次显示居中于目标显示器 |
-| `Focus` | `true` | 首次显示后激活 |
-| `ShowInTaskbar` | `true` | 任务栏显示；有 Owner 的窗口通常应设 false |
-| `Resizable` | `true` | 关闭后同时禁用最大化按钮 |
-| `TitleBarStyle` | `ChromeTitleBarStyle.Chrome` | 标题栏几何骨架（`WindowChromeKit` 枚举） |
-| `TitleBarPalette` | `ChromeTitleBarPalette.Default` | 标题栏配色 |
-| `AllowedOrigins` | `[]`（不限制） | Origin 白名单 |
-| `ClosingAsync` | `null` | 关闭裁决；返回 `false` 拒绝关闭 |
-| `OpenedAsync` | `null` | 首次导航完成并显示后触发 |
-| `ClosedAsync` | `null` | 窗口关闭后触发一次 |
-| `NewWindowRequestedAsync` | `null` | 页面请求新窗口；null 时在当前窗口内导航 |
-
-### 3.3 线程模型
-
-- 所有窗口创建、显示与 WebView2 交互**必须在传入的 `Dispatcher`（UI 线程）上**。
-- `WebViewShell` 内部通过 `_dispatcher.InvokeAsync` 切回 UI 线程创建窗口，
-  因此 `OpenAsync` 可以从任意线程调用（`CreateAsync` 同样要求提供 `Dispatcher`）。
-- `WebViewShell` 的窗口字典当前**没有加锁**，`WindowCount` / `TryGetWindow` /
-  `CloseAsync` 假定在 UI 线程调用。多线程访问是未定义行为（见第八节 D4）。
-
----
-
-## 四、内部结构
-
-目录**刻意保持扁平**：6 个源文件全部位于项目根目录，不设子目录。
-
-```
-src/BrowserShell.WebView.Wpf/
-├── WebViewShell.cs                                127  入口：窗口托管
-├── WebViewWindow.cs                               588  窗口本体（职责过载，见下）
-├── WebViewWindowOptions.cs                         82  配置 + 关闭上下文
-├── WebViewWindowEnvironment.cs                    122  环境 / Profile / 临时目录
-├── WebView2InitializationCoordinator.cs            28  串行初始化
-├── WebViewPresentationMask.cs                      97  加载遮罩（注入脚本）
-├── BrowserShell.WebView.Wpf.csproj
-└── README.md                                       52  使用说明
-```
-
-合计 **6 个 .cs / 1044 行**（共 8 个入库文件）。
-
-**为什么扁平**：全部类型同属单一命名空间 `BrowserShell.WebView.Wpf`，仓库规模只有 6 个文件。
-此时任何子目录都会造成"物理目录结构与逻辑命名空间不一致"，并让 1 个文件独占一层目录
-（如原 `Windows/Coordination/`、`Windows/WebView/` 各只装 1 个文件）。
-子目录带来的定位成本高于它提供的分类价值，故全部收敛到根目录。
-
-> 历史说明：`Windows/` 及其下 `Coordination/`、`WebView/` 是 SDK 时代的遗留分层——
-> 当年存在 `Instances/`、`Frame/`、`Interop/`、`Icons/`、`Pages/` 等多个目录，
-> 各装有多个文件，分层是有意义的。瘦身后文件被大量删除，目录结构未同步收拢，
-> 才出现"空壳两层、每层一个文件"的形态。本次重组已将其拍平。
->
-> 若将来文件数显著增长（例如超过 15 个），再按**职责**而非历史沿革重新引入
-> 子目录，并同步调整命名空间。
-
-> 变更记录：原 9 文件 / 1211 行中的输入门控三件套
-> （`NativeInput.cs` 21 行、`NativeWindowInputGate.cs` 96 行、`ModalWindowBlockState.cs` 35 行）
-> 已按"无生产调用点"结论**删除**，详见 7.1。`WebViewWindow.cs` 同步移除
-> `_inputGate` 字段、构造初始化与 `SourceInitialized` 订阅，及 3 个 public 成员。
->
-> 数字漂移说明：`迁移报告.md` 第二节记的 `1149 行` 是瘦身提交 `c7278a8` 当时的值；
-> 其后 `WebViewWindow` 的失败呈现与导航兜底改动使总数增至 1211 行，再经本次删除降至 1044 行。
-
-### 4.1 `WebViewWindow` 的职责过载
-
-588 行仍占全库近六成，单个文件内同时承担 6 件事：
-
-| 关注点 | 大致位置 |
-|---|---|
-| 窗口外观应用（标题/尺寸/ResizeMode/标题栏） | `ApplyOptions` |
-| 初始化时序（EnsureHandle → Show → 布局 → WebView） | `InitializeAndShowAsync` |
-| WebView2 装配（设置、事件、脚本注入、首次导航） | `InitializeWebViewAsync` |
-| 失败呈现（错误面板 UI） | `ShowInitializationFailure` |
-| 关闭裁决与页面桥消息 | `RequestCloseAsync` / `HandleBridgeMessageAsync` |
-| 注入脚本字面量 | `CreateWindowBridgeScript` |
-
-这些关注点彼此独立（UI 文本、JS 字面量、时序控制混在一起），是可分离的。
-拆分**不改变公开 API**，属于纯内部整理（见第八节 D1）。
-
----
-
-## 五、关键时序
-
-### 5.1 打开窗口
-
-```
-宿主: WebViewShell.CreateAsync(dispatcher)
-        └─ WebViewWindowEnvironment.Create(...)   → 准备临时用户数据目录
-           └─ InitializeAsync()                    → CoreWebView2Environment.CreateAsync
-
-宿主: shell.OpenAsync(options, id)
-        ├─ 校验 id 唯一性（重复即抛）
-        ├─ dispatcher.InvokeAsync → new WebViewWindow(...)   ← 仅构造，不显示
-        └─ window.InitializeAndShowAsync(token)
-              ├─ EnsureHandle()            ← 必须先有 HWND，再创建 controller
-              ├─ Show() + 居中/约束到工作区
-              ├─ 等待 Loaded / Render 优先级排空
-              └─ InitializeWebViewAsync(token)
-                    ├─ 串行化 EnsureCoreWebView2Async
-                    ├─ 收紧设置（禁 DevTools/右键/下载/权限/脚本对话框）
-                    ├─ 注入遮罩脚本 + 页面桥脚本
-                    ├─ 首次导航（30s 超时，失败不抛）
-                    ├─ 揭开遮罩、显示 WebView
-                    └─ Focus 时 Activate()
-        └─ OpenedAsync 回调
-```
-
-**关键约束**：`EnsureHandle()` 必须在创建 WebView2 controller **之前**。
-否则自绘标题栏会落在 DWM 尚未接管客户区的时间点，出现绘制错位。
-
-**失败隔离**：窗口显示与 WebView2 初始化是两段独立的兜底。窗口先出来，
-WebView 失败时保留窗口并显示原因，避免"一闪即消"。首次导航失败（网络/DNS/超时）
-**不抛异常**，原因写入 `LastNavigationError`，调用方可重试。
-
-### 5.2 关闭裁决
-
-```
-来源 A：标题栏关闭按钮 → WPF Closing 事件
-来源 B：页面 browserShell.window.close() → WebMessage
-来源 C：宿主 window.CloseAsync(source) / shell.CloseAsync(id, source)
-
-        ┌─────────────────────────────────────────┐
-        │ ClosingAsync == null ? 直接关闭          │
-        │ 否则 → RequestCloseAsync(source, reqId) │
-        │   ├─ 已有裁决在途 → 返回 CLOSE_PENDING   │
-        │   ├─ accept  → CloseCore()               │
-        │   └─ reject  → 保持打开                  │
-        └─────────────────────────────────────────┘
-                      ↓
-        来源 B 额外回传 shellWindowCloseResult
-        （accepted / code / message）
-```
-
-- 标题栏关闭通过 `eventArgs.Cancel = true` 拦截，转入裁决；`CloseCore()` 内部用
-  `_forceClose` 放行真实的 `Close()`，避免二次裁决死循环。
-- `CloseCore()` 会 `Hide()` 再 `Close()`，并把 `Owner` 置空。
-- 裁决回调抛异常时按"拒绝关闭"处理，来源 B 还会回传 `HANDLER_FAILED`。
-
-### 5.3 页面侧控制桥
-
-注入的 `globalThis.browserShell.window`（`Object.freeze`）：
-
-| 成员 | 行为 |
-|---|---|
-| `windowId` | 当前窗口标识 |
-| `minimize()` / `maximize()` / `restore()` | 立即执行，无回执 |
-| `close()` | 返回 `Promise<{accepted, code, message}>`，经 `requestId` 关联回执 |
-
-页面 → 宿主消息类型为 `shellWindow`，宿主 → 页面回执类型为 `shellWindowCloseResult`。
-
-### 5.4 加载遮罩
-
-遮罩不依赖 WPF 层，而是注入到**页面文档内部**（`__softwarehub_presentation_mask__`，
-`position: fixed` + 最高 z-index + closed shadow root），因此它天然覆盖 WebView2
-自己的 HWND 区域，不受 WPF 合成影响。
-
-- 初始化脚本立即插入遮罩，因此**首次导航一开始就被遮住**。
-- 导航完成或初始化流程结束时，通过 `ExecuteScriptAsync` 调
-  `__softwareHubSetPresentationMask(false, generation)` 揭开。
-- 用单调递增 `generation` 防止乱序：`requestedGeneration < generation` 的请求被忽略，
-  避免后发的"显示"被先发的"遮罩"覆盖。
-- 遮罩操作失败被吞掉（`catch { }`）——**遮罩不可用时页面仍可见，不阻断导航**。
-
----
-
-## 六、失败语义汇总
-
-| 场景 | 行为 |
-|---|---|
-| WebView2 Runtime 缺失 | 窗口保留，内容区显示"无法初始化 WebView2"与原因；`LastNavigationError` 有值 |
-| 首次导航失败/超时 | 不抛异常，`LastNavigationError` 记录原因，窗口可用 |
-| Profile 创建失败 | 同 Runtime 缺失，走同一失败面板 |
-| `EnsureCoreWebView2Async` 被关闭流程取消 | 视为正常取消，不报错 |
-| `OpenAsync` 窗口构造后初始化失败 | 从管理器移除 + 释放 + 上抛，不留空壳 |
-| 遮罩脚本执行失败 | 静默忽略 |
-| 显示器热插拔导致约束失败 | 静默忽略，不影响窗口存续 |
-| 关闭裁决回调抛异常 | 按拒绝处理，回传 `HANDLER_FAILED` |
-
-安全默认值（`InitializeWebViewAsync` 中显式收紧）：
-
-- `AreHostObjectsAllowed = false`
-- `AreDefaultScriptDialogsEnabled = false`
-- `AreDevToolsEnabled = false`
-- `AreDefaultContextMenusEnabled = false`
-- `IsStatusBarEnabled = false`
-- 所有 `PermissionRequested` 一律 **Deny**
-- 所有 `DownloadStarting` 一律 **Cancel**
-
-即：**默认拒绝，由宿主按需放开**。当前版本没有提供放开这些开关的选项（见第八节 D5）。
-
----
-
-## 七、待决事项
-
-以下问题已核实，但**尚未定案**，需与项目维护者确认后再改代码。
-
-### 7.1 模态输入门控 —— ✅ 已删除
-
-**决定**：删除输入门控三件套。已从 `WebViewWindow.cs` 与测试中移除。
-
-原状：`NativeWindowInputGate`（96 行）+ `ModalWindowBlockState`（35 行）+ `NativeInput`（21 行）
-构成一套"阻止父窗口接收输入"的门控，但检索全仓库（含 sample、xaml、demo.html）：
-
-| 成员 | 可见性 | 生产调用点 |
-|---|---|---|
-| `WebViewWindow.BlockForModalChild()` | **public** | **0** |
-| `WebViewWindow.ReleaseModalChildBlock()` | **public** | **0** |
-| `WebViewWindow.ModalReferenceCount` | **public** | **0** |
-| `NativeWindowInputGate.SetResultPending` | internal | 仅测试 |
-| `NativeWindowInputGate.IsInputBlocked` / `IsResultPending` | internal | 仅测试 |
-
-**唯一消费者是它自己的测试**（`NativeWindowInputGateTests` 121 行、
-`ModalWindowBlockStateTests` 45 行）。它来自 SDK 时代——原设计里 PageWindow 的模态
-子窗口需要让父窗口"变灰"，而 PageWindow 已不在此库中。
-
-**删除理由**（原选项 1）：
-
-1. 零生产调用点，连示例与页面都不涉及。
-2. 门控用 `EnableWindow(hwnd, false)` 禁用**顶层 HWND**。父窗口是 `ChromeWindow`
-   （自绘标题栏），禁用后标题栏按钮同样失去响应，用户会看到一个"点不动"的窗口。
-   测试断言的是 WPF 可视树仍 `IsEnabled`，但原生标题栏交互未被覆盖。
-3. 当前无外部集成方，删除成本最低。
-
-**删除内容**（路径为删除当时的位置；`Windows/Instances/` 目录随后在
-目录重组中一并移除，见第四节）：
-
-| 文件 | 处理 |
-|---|---|
-| `NativeInput.cs`（21 行） | 删除 |
-| `Windows/Instances/NativeWindowInputGate.cs`（96 行） | 删除 |
-| `Windows/Instances/ModalWindowBlockState.cs`（35 行） | 删除 |
-| `tests/.../NativeWindowInputGateTests.cs`（121 行） | 删除 |
-| `tests/.../ModalWindowBlockStateTests.cs`（45 行） | 删除 |
-
-**`WebViewWindow.cs` 同步改动**：移除 `_inputGate` 字段、构造函数中的门控初始化、
-`SourceInitialized` 订阅，以及 `BlockForModalChild()` / `ReleaseModalChildBlock()` /
-`ModalReferenceCount` 三个 public 成员。
-
-> 若将来重新引入模态子窗口需求，应从 git 历史取回这三个文件，并**重新设计**
-> 阻塞语义（只挡内容区而非整个 HWND），而不是恢复 `EnableWindow` 的旧做法。
-
-### 7.2 窗口自发关闭不通知 `WebViewShell`（缺陷）
-
-`WebViewShell._windows` 只在两处移除：
-
-- `WebViewShell.cs:89` —— `OpenAsync` 初始化失败时
-- `WebViewShell.cs:107` —— `CloseAsync(id)` 被显式调用时
-
-而用户**点标题栏 X** 关闭窗口时，路径是
-`OnClosing → RequestCloseAsync → CloseCore() → Close()`，
-**不经过 `WebViewShell.CloseAsync`**。`Closed` 事件只回调 `options.ClosedAsync`，
-没有任何机制通知 `WebViewShell` 移除条目。
-
-后果：
-
-- `WindowCount` 虚高（包含已关闭窗口）
-- `TryGetWindow` / `Windows` 会返回已关闭的死窗口
-- 示例 `MainWindow.xaml.cs:122` 正是在 `ClosedAsync` 里读 `_shell.WindowCount` 显示窗口数，
-  因此**示例界面上的窗口计数会失真**
-
-这是行为缺陷而非风格问题，修复方向是让 `WebViewWindow` 在关闭时回调所有者
-（例如注入一个内部 `onClosed` 或让 `WebViewShell` 订阅 `ClosedAsync`）。
-
-### 7.3 文档与代码矛盾
-
-`README.md:119` 写：
-
-> `WebViewWindow` 本身即 `ChromeWindow` 派生类，宿主也可直接继承它扩展自定义行为。
-
-但实际是 `public sealed class WebViewWindow`，且构造函数为 `internal`。
-**宿主既不能继承，也不能直接 new。** 该句必须删除或改写。
-
-### 7.4 页面脚本品牌残留
-
-遮罩脚本内仍是旧的 `SoftwareHub` 品牌标识：
-
-- `WebViewPresentationMask.cs:11` —— `const hostId = '__softwarehub_presentation_mask__'`
-- `WebViewPresentationMask.cs:66` —— `globalThis.__softwareHubSetPresentationMask`
-- `WebViewPresentationMask.cs:93` —— 同一全局名的调用
-
-迁移报告记录"残留 `SoftwareHub` 标识符 = 0"，但**只统计了 C# 标识符，未覆盖内嵌 JS 字符串**。
-这些名字会注入到每个页面，属于对外可见的实现痕迹。是否改名需考虑：一旦有页面
-依赖该全局名（当前它是内部约定，未对外文档化），改名即为破坏性变更。
-
-### 7.5 无调用点的成员
-
-分两类，性质不同。
-
-**（a）内部成员——属于实现残留**
-
-| 成员 | 状态 |
-|---|---|
-| `WebViewPresentationMask.PostVisibility(core, visible, generation)` | **0 调用点**（实际走 `SetVisibilityAsync`） |
-
-**（b）公开成员——没有任何仓内调用者**
-
-这些是"对外承诺的能力"，示例未演示、测试未覆盖，因此**行为未经任何验证**：
-
-| 成员 | 仓内调用点 |
-|---|---|
-| `WebViewWindow.ApplyOptions` | 0（仅构造函数内部调用一次） |
-| `WebViewWindow.ClosePermanently` | 0 |
-| `WebViewWindow.IsClosed` | 0 |
-| `WebViewWindow.NavigateAsync` / `ReloadAsync` | 0 |
-| `WebViewWindow.ShowWindowAsync` / `HideAsync` | 0 |
-| `WebViewWindow.MinimizeAsync` / `MaximizeAsync` / `RestoreAsync` | 0 |
-| `WebViewWindow.SetTitleAsync` | 0 |
-
-需要区分对待：
-
-- `ApplyOptions` / `ClosePermanently` / `IsClosed` 属于**冗余公开面**——
-  前者只在构造时被调用一次（公开出去意义不明），`ClosePermanently` 绕过裁决
-  与"关闭必须经裁决"的设计意图相冲突。建议收回或删除。
-- 窗口命令类（`Minimize` / `Maximize` / `Restore` / `Hide` / `Show` / `SetTitle` /
-  `Navigate` / `Reload`）是**合理的对外能力**，但示例与测试都没碰。
-  建议在示例中演示、或补测试，否则无法确认它们真的可用。
-
-> 注：页面桥 `browserShell.window.*` 走的是 `WebViewWindow` 内部字段
-> （`WindowState = ...`），**不经过**上述公开方法，因此这些方法实际上是两条并行的
-> 实现路径。页面桥能工作，不代表这些公开方法也正确。
->
-> 两条路径已经出现**行为不一致**：`RestoreAsync()` 在还原后调用了
-> `WindowPlacementService.ConstrainToWorkArea(this)`，而页面桥的 `restore` 分支
-> （`WebViewWindow.cs:448`）只设 `WindowState = WindowState.Normal`，不做工作区约束。
-> 窗口从最小化还原到已拔掉的显示器上时，两者结果会不同。
-
-### 7.6 页面桥消息解析无防护（缺陷）
-
-`WebViewWindow.cs:181` 以 fire-and-forget 方式接收页面消息：
-
 ```csharp
-core.WebMessageReceived += (_, eventArgs) => _ = HandleBridgeMessageAsync(eventArgs.WebMessageAsJson);
-```
-
-而 `HandleBridgeMessageAsync`（`WebViewWindow.cs:436`）**没有任何 try/catch**，
-第一行就直接 `JsonDocument.Parse(json)`，紧接着 `root.TryGetProperty(...)`。
-
-问题在于 `JsonElement.TryGetProperty` 的文档行为：当 `ValueKind` 不是 `Object` 时
-**抛 `InvalidOperationException`**。而页面通过 `chrome.webview.postMessage(value)`
-可以发送**任意 JSON 值**，不限于对象：
-
-```js
-chrome.webview.postMessage(null);   // → "null"    → ValueKind = Null   → 抛异常
-chrome.webview.postMessage(42);     // → "42"      → ValueKind = Number → 抛异常
-chrome.webview.postMessage("hi");   // → "\"hi\""  → ValueKind = String → 抛异常
-```
-
-由于该任务无人等待，异常会变成 **unobserved task exception**：轻则被静默吞掉，
-重则在特定配置下触发进程级异常处理。
-
-需要说明的是，`AreHostObjectsAllowed = false` **不会**阻止
-`chrome.webview.postMessage`——这是 WebView2 的宿主通信通道，任何被承载的页面
-（包括第三方页面）都能触发上述路径。
-
-对照之下，`RequestCloseAsync` 是**有** try/catch 的（`WebViewWindow.cs:423`），
-所以这是一个局部的防护遗漏，不是整体风格。
-
-修复方向：解析前判断 `ValueKind == JsonValueKind.Object`，并给整个方法加 try/catch。
-
----
-
-## 八、演进方向（候选，未定案）
-
-### D1. 拆分 `WebViewWindow`（纯内部整理，不改 API）
-
-建议按关注点拆成若干内部文件，`WebViewWindow` 保留为组合根：
-
-| 候选拆分 | 内容 |
-|---|---|
-| 窗口外观 | `ApplyOptions` 相关 |
-| 初始化时序 | `InitializeAndShowAsync` / `InitializeWebViewAsync` |
-| 失败呈现 | `ShowInitializationFailure` + 初始化面板 UI |
-| 页面桥 | `CreateWindowBridgeScript` / `HandleBridgeMessageAsync` / `PostCloseResult` |
-| 关闭裁决 | `RequestCloseAsync` / `OnClosing` / `CloseCore` |
-
-### D2. 封装力度：是否继续暴露底层类型
-
-当前公开面泄漏了外部依赖的具体类型：
-
-| 泄漏点 | 影响 |
-|---|---|
-| `WebViewWindow : ChromeWindow` | 换掉 `WindowChromeKit` 即破坏性变更；`ChromeWindow` 全部成员成为隐含公开面 |
-| `WebViewWindowEnvironment.Core → CoreWebView2Environment` | 原生 WebView2 对象直接交出去，封装失效 |
-| `WebViewWindowEnvironment.CreateControllerOptions(string)` | 同上 |
-| `WebViewWindowOptions.TitleBarStyle/Palette` | 绑定 `WindowChromeKit` 枚举 |
-
-取舍：
-
-- **收紧**：把原生对象改为 `internal`，只暴露必要的能力接口；降低外部耦合。
-- **开放**：承认本库面向"高级宿主"，故意交出 Win32/WebView2 控制权。
-
-需要明确取舍，因为它决定 D3 的可行性。注意：**当前无外部集成方**
-（本仓库内仅示例与测试引用），是调整公开面的成本最低点。
-
-### D3. 同源约束是否应留在本库
-
-`AllowedOrigins` 同时作用于 `NavigationStarting` 拦截与 `NewWindowRequested`。
-它是**安全策略**，但只支持"Origin 白名单"这一种形态。复杂策略（按路径、按方法、
-按导航来源）无法表达。可考虑：保留简单白名单，同时提供"策略回调"逃生口。
-
-### D4. 线程安全
-
-`WebViewShell` 的字典与 `_disposed` 标志无锁。若承诺"可从任意线程调用"，
-需要加锁或明确只允许 UI 线程调用并在文档中声明。当前是**隐含的 UI 线程约定**。
-
-### D5. 安全开关的开放程度
-
-当前硬编码"全部拒绝"（权限、下载、DevTools、右键、脚本对话框），
-且无选项可放开。对纯展示型宿主合适；对需要 DevTools 调试或文件下载的业务
-则不可用。可考虑增加 `WebViewWindowOptions` 开关，默认保持拒绝。
-
----
-
-## 九、测试现状
-
-7.1 删除完成后，测试只剩：
-
-| 测试文件 | 行数 | 覆盖对象 |
-|---|---|---|
-| `WebViewPresentationMaskTests.cs` | 24 | 遮罩命令序列化与脚本特征 |
-
-合计 **1 文件 / 24 行**。
-
-（删除前为 3 文件 / 190 行，其中 166 行测的是零生产调用点的输入门控。）
-
-覆盖缺口（与第七节问题对应）：
-
-- `WebViewShell` 的窗口托管逻辑（含 7.2 的缺陷）**无测试**
-- `WebViewWindow` 的关闭裁决路径**无测试**
-- `WebViewWindowEnvironment` 的 Profile 隔离与临时目录回收**无测试**
-- 页面桥的消息协议（含 7.6 的解析缺陷）**无测试**
-
-即：原本的测试投入集中在**已被证明无生产价值**的部分（166/190 行），
-删除后有效覆盖率接近于零。**补测是当前优先级最高的工程任务**，
-首推 `WebViewShell` 的窗口托管与 `WebViewWindow` 的关闭裁决。
-
-`dotnet test` 需在 Windows 上运行（依赖 `Microsoft.WindowsDesktop.App`），
-Linux 上无法执行。
-
----
-
-## 十、附：公开 API 一览
-
-```csharp
-namespace BrowserShell.WebView.Wpf;
-
 public sealed class WebViewShell : IAsyncDisposable
 {
     public static Task<WebViewShell> CreateAsync(
@@ -584,7 +122,148 @@ public sealed class WebViewShell : IAsyncDisposable
         string? id = null,
         CancellationToken token = default);
 
-    public Task CloseAsync(string id, string source = "Service");
+    public Task CloseAsync(string id, string source = "Host");
+    public ValueTask DisposeAsync();
+}
+```
+
+**约定与失败语义**
+
+| 情形 | 行为 |
+|---|---|
+| `CreateAsync` 环境初始化失败（如未装 Runtime） | 抛异常 |
+| `OpenAsync` 的 `id` 为 null | 自动生成 GUID（`N` 格式） |
+| `OpenAsync` 的 `id` 为空白 | 抛 `ArgumentException` |
+| `OpenAsync` 的 `id` 重复 | 抛 `InvalidOperationException` |
+| `OpenAsync` 第二阶段（初始化/显示）失败 | 移除注册 + 释放 + 上抛，**不留空壳窗口** |
+| `CloseAsync` 指定不存在的 `id` | 静默返回（幂等） |
+| `CloseAsync` 被 `ClosingAsync` 拒绝 | **窗口保留在管理器中**，不视为已关闭 |
+| `DisposeAsync` | 先释放全部窗口，再释放环境；并发调用只生效一次 |
+
+**线程模型**
+
+- 窗口 UI 操作必须在传入的 `Dispatcher` 上；`OpenAsync` 内部切回 UI 线程，故可从任意线程调用。
+- 注册表操作（增 / 删 / 清空）**统一在 UI 线程执行**，非 UI 线程调用时自动切换。因此
+  `WindowCount` / `Windows` / `TryGetWindow` 应在 UI 线程读取。
+- `DisposeAsync` 与 `OpenAsync` 并发时，以 `Interlocked` 一次性转移保证只释放一次。
+
+### 3.2 `WebViewWindow`
+
+```csharp
+public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
+{
+    public string Id { get; }
+    public bool IsClosed { get; }
+    public string? LastNavigationError { get; }
+
+    public Task NavigateAsync(Uri target);   // 受 AllowedOrigins 约束
+    public Task ReloadAsync();
+    public Task CloseAsync(string source = "Host");
+    public ValueTask DisposeAsync();
+}
+```
+
+**设计要点**
+
+- **不提供** `MinimizeAsync` / `MaximizeAsync` / `RestoreAsync` / `SetTitleAsync` /
+  `ShowWindowAsync` / `HideAsync`。理由是它们只是转发到继承来的 `WindowState` / `Title` /
+  `Show()` / `Hide()`（见 4.1）。
+- `NavigateAsync` / `ReloadAsync` **保留**：它们是"套壳"的固有能力，且
+  `NavigateAsync` 承担了 `AllowedOrigins` 校验（宿主无法从基类获得该约束）。
+- `CloseAsync` 走 `ClosingAsync` 裁决；`ClosePermanently` **删除**（绕过裁决，与 R6 相悖）。
+- `InitializeAndShowAsync` 与 `ApplyOptions` **收回 `internal`**：唯一调用方是
+  `WebViewShell`，公开无意义。
+- `LastNavigationError`：首次导航失败原因。**成功导航时重置为 null**（当前实现不重置，
+  属待修，见 6.6）。
+- `NavigateAsync` / `ReloadAsync` 当前**立即返回**（不等待导航完成）。3.0.0 保持这一语义，
+  但在 XML 文档中明确写出，避免宿主误以为 `await` 即已加载完成。
+
+### 3.3 `WebViewWindowOptions`
+
+```csharp
+public sealed class WebViewWindowOptions
+{
+    // —— 窗口 ——
+    public Uri? Url { get; init; }
+    public string? Title { get; init; }                      // 空则回退 Url.Host
+    public double Width { get; init; } = 1024;
+    public double Height { get; init; } = 768;
+    public double MinWidth { get; init; }
+    public double MinHeight { get; init; }
+    public bool Topmost { get; init; }
+    public bool Center { get; init; } = true;
+    public bool Focus { get; init; } = true;
+    public bool ShowInTaskbar { get; init; } = true;
+    public bool Resizable { get; init; } = true;
+    public ChromeTitleBarStyle TitleBarStyle { get; init; } = ChromeTitleBarStyle.Chrome;
+    public ChromeTitleBarPalette TitleBarPalette { get; init; } = ChromeTitleBarPalette.Default;
+
+    // —— 外观（3.0.0 新增）——
+    public Color BackgroundColor { get; init; } = Colors.White;
+
+    // —— 安全 ——
+    public IReadOnlyList<string> AllowedOrigins { get; init; } = [];   // 空 = 不限制
+
+    // —— 回调 ——
+    public Func<WebViewWindowClosingContext, CancellationToken, Task<bool>>? ClosingAsync { get; init; }
+    public Func<WebViewWindow, Task>? OpenedAsync { get; init; }
+    public Func<WebViewWindow, Task>? ClosedAsync { get; init; }
+    public Func<WebViewWindow, Uri, Task>? NewWindowRequestedAsync { get; init; }
+}
+```
+
+**`BackgroundColor` 是本次新增的唯一配置项**，用于消除深色页面的白闪（见 5.2 与 6.1）。
+它同时作用于三处（当前三处都硬编码白色）：
+
+| 作用点 | 当前值 | 3.0.0 |
+|---|---|---|
+| `WebView2.DefaultBackgroundColor` | `Color.White`（`WebViewWindow.cs:22`） | `BackgroundColor` |
+| `_presentationRoot` 背景 | `Brushes.White`（`:29`） | `BackgroundColor` |
+| 注入遮罩背景 | `'#ffffff'`（`WebViewPresentationMask.cs:25`） | `BackgroundColor`（脚本参数化） |
+
+### 3.4 `WebViewWindowClosingContext`
+
+```csharp
+public sealed class WebViewWindowClosingContext
+{
+    public WebViewWindow Window { get; }
+    public string Source { get; }   // "WindowChrome" | "Page" | 宿主自定义
+}
+```
+
+### 3.5 不再公开的类型
+
+| 类型 | 3.0.0 可见性 | 理由 |
+|---|---|---|
+| `WebViewWindowEnvironment` | **`internal`** | 见下 |
+| `WebView2InitializationCoordinator` | `internal`（不变） | 实现细节 |
+| `WebViewPresentationMask` | `internal`（不变） | 实现细节 |
+
+**为什么 `WebViewWindowEnvironment` 必须收回**：它当前是 `public`，但
+`WebViewShell` 的 `_environment` 字段是私有的且**没有任何公开访问器**，全库也没有任何
+API 接受一个 `WebViewWindowEnvironment` 实例。宿主唯一能做的就是自己调
+`WebViewWindowEnvironment.Create(...)` 造一个，然后**无处可用**。
+
+也就是说，它是一个**公开的死胡同类型**——暴露了实现细节，却不提供任何用途。
+收回 `internal` 不损失任何宿主能力（那两个目录参数已由 `WebViewShell.CreateAsync` 承载），
+同时消除 `Core`（`CoreWebView2Environment`）与 `CreateControllerOptions` 的原生类型泄漏。
+
+### 3.6 公开 API 一览（3.0.0 目标态）
+
+```csharp
+namespace BrowserShell.WebView.Wpf;
+
+public sealed class WebViewShell : IAsyncDisposable
+{
+    public static Task<WebViewShell> CreateAsync(Dispatcher dispatcher,
+        string? browserExecutableFolder = null, string? userDataFolder = null,
+        CancellationToken token = default);
+    public int WindowCount { get; }
+    public IReadOnlyCollection<WebViewWindow> Windows { get; }
+    public bool TryGetWindow(string id, out WebViewWindow? window);
+    public Task<WebViewWindow> OpenAsync(WebViewWindowOptions options,
+        string? id = null, CancellationToken token = default);
+    public Task CloseAsync(string id, string source = "Host");
     public ValueTask DisposeAsync();
 }
 
@@ -593,48 +272,457 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     public string Id { get; }
     public bool IsClosed { get; }
     public string? LastNavigationError { get; }
-
-    public Task InitializeAndShowAsync(CancellationToken token = default);
-    public void ApplyOptions(WebViewWindowOptions options);
     public Task NavigateAsync(Uri target);
     public Task ReloadAsync();
-    public Task SetTitleAsync(string title);
-    public Task ShowWindowAsync();
-    public Task HideAsync();
-    public Task MinimizeAsync();
-    public Task MaximizeAsync();
-    public Task RestoreAsync();
-    public Task CloseAsync(string source = "Service");
-    public void ClosePermanently();
+    public Task CloseAsync(string source = "Host");
     public ValueTask DisposeAsync();
 }
 
-public sealed class WebViewWindowOptions { /* 见 3.2 */ }
+public sealed class WebViewWindowOptions { /* 见 3.3 */ }
 
 public sealed class WebViewWindowClosingContext
 {
     public WebViewWindow Window { get; }
-    public string Source { get; }   // "WindowChrome" | "Page" | 宿主自定义
-}
-
-public sealed class WebViewWindowEnvironment : IAsyncDisposable
-{
-    public static WebViewWindowEnvironment Create(
-        Dispatcher dispatcher,
-        string? browserExecutableFolder = null,
-        string? userDataFolder = null);
-
-    public CoreWebView2Environment Core { get; }                       // 泄漏原生类型
-    public CoreWebView2ControllerOptions CreateControllerOptions(string profileId);  // 同上
-    public Task InitializeAsync(CancellationToken token = default);
-    public ValueTask DisposeAsync();
+    public string Source { get; }
 }
 ```
+
+---
+
+## 四、与 2.0.0 的差异
+
+**本次为破坏性变更**，故版本升至 3.0.0。
+
+### 4.1 删除：纯转发的窗口命令包装
+
+`WebViewWindow : ChromeWindow : Window`，因此下列能力**宿主本来就能通过继承的 API 使用**：
+
+| 删除的成员 | 方法体（当前实现） | 宿主改用 |
+|---|---|---|
+| `MinimizeAsync()` | `WindowState = WindowState.Minimized;` | `window.WindowState = ...` |
+| `MaximizeAsync()` | `WindowState = WindowState.Maximized;` | 同上 |
+| `SetTitleAsync(t)` | `Title = t ?? string.Empty;` | `window.Title = t` |
+| `HideAsync()` | `Hide();` | `window.Hide()` |
+| `ShowWindowAsync()` | `Show(); ConstrainToWorkArea(); Activate();` | `window.Show(); window.Activate();` |
+| `RestoreAsync()` | `WindowState = Normal; ConstrainToWorkArea();` | 见 4.3（行为需先迁移） |
+
+**规模**：6 个方法合计 **33 行方法体**（含 XML 注释 **39 行**）。
+
+它们全仓**零调用**（示例与测试都不使用），且页面桥也**不经过**它们
+（桥直接设 `WindowState`，见 `HandleBridgeMessageAsync`）。
+保留它们只会让公开面看起来像 SDK，实际是噪音。
+
+> 说明其中的**真实行为**（非纯转发）只有两处，删除时必须迁移：
+> `ShowWindowAsync` 的 `Activate()` 与 `ConstrainToWorkArea()`、
+> `RestoreAsync` 的 `ConstrainToWorkArea()`。详见 4.3。
+
+### 4.2 删除：与职责冲突或语义冗余
+
+| 成员 | 处理 | 理由 |
+|---|---|---|
+| `ClosePermanently()` | 删除 | 绕过关闭裁决，与 R6 直接冲突 |
+| `ApplyOptions(options)` | 收回 `internal` | 仅构造函数内部调用一次 |
+| `InitializeAndShowAsync(token)` | 收回 `internal` | 唯一调用方是 `WebViewShell.OpenAsync` |
+| `WebViewPresentationMask.PostVisibility(...)` | 删除 | 0 调用点（实际走 `SetVisibilityAsync`） |
+
+### 4.3 保留但需说明
+
+| 成员 | 处理 | 理由 |
+|---|---|---|
+| `WindowCount` / `Windows` / `TryGetWindow` | **保留** | R1"窗口托管"的自然组成；多窗口场景按 id 找回窗口是基础能力 |
+| `IsClosed` | **保留** | 宿主在回调中判断窗口状态的最低需要 |
+| `NavigateAsync` / `ReloadAsync` | **保留** | 套壳固有能力；前者含同源校验 |
+
+**待迁移的真实行为**：4.1 的 6 个包装中，两处含非转发逻辑，删除前必须落位：
+
+| 来源 | 行为 | 3.0.0 去向 |
+|---|---|---|
+| `ShowWindowAsync` | `ConstrainToWorkArea()` + `Activate()` | 窗口显示流程内部已做约束；`Activate` 由 `options.Focus` 控制 |
+| `RestoreAsync` | `ConstrainToWorkArea()` | **必须迁移**，见下 |
+
+> **`RestoreAsync` 的额外行为需要迁移，不是自动保留**。已核实：
+>
+> | 路径 | 设 `WindowState = Normal` | 调 `ConstrainToWorkArea` |
+> |---|---|---|
+> | `RestoreAsync()`（将删除） | ✅ | ✅ |
+> | 页面桥 `case "restore"` | ✅ | ❌ **没有** |
+> | `OnDisplayConfigurationChanged` | ❌ | ✅（仅显示器变化时） |
+>
+> 也就是说，`RestoreAsync` 是**当前唯一**在"还原"时把窗口拉回工作区的路径。删除它之前，
+> 该行为必须迁移到内部方法，并让页面桥的 `restore` 分支也调用它——否则会出现
+> **行为倒退**：窗口从最小化还原到一台已被拔掉的显示器上时，会留在屏幕外。
+>
+> 这同时修掉 2.0.0 的一处不一致（两条 restore 路径行为不同）。
+
+### 4.4 新增
+
+| 项 | 说明 |
+|---|---|
+| `WebViewWindowOptions.BackgroundColor` | 贯通三处底色，消除深色页面白闪 |
+| `WebViewWindowEnvironment` 改 `internal` | 移除公开死胡同类型 |
+| 遮罩全局名重命名 | `__softwarehub_*` → `__browserShell*`（见 6.5） |
+
+### 4.5 变更汇总
+
+| 动作 | 数量 |
+|---|---|
+| 删除公开成员 | **7**（6 个包装 + `ClosePermanently`） |
+| 收回 `internal` | **3**（`ApplyOptions`、`InitializeAndShowAsync`、`WebViewWindowEnvironment`） |
+| 新增公开成员 | **1**（`BackgroundColor`） |
+| 净减代码 | 约 **41 行**（33 包装体 + 2 `ClosePermanently` + 6 `PostVisibility`） |
+
+> 净减口径为**实际删除的方法体行数**，不含 XML 注释（含注释时包装部分为 39 行）。
+> `ApplyOptions` / `InitializeAndShowAsync` / `WebViewWindowEnvironment` 仅改可见性，
+> **不减少行数**，故不计入净减。
+
+---
+
+## 五、关键机制
+
+### 5.1 打开窗口时序
+
+```
+宿主  WebViewShell.CreateAsync(dispatcher)
+        └─ WebViewWindowEnvironment.Create(...)   准备临时用户数据目录
+           └─ InitializeAsync()                    CoreWebView2Environment.CreateAsync
+
+宿主  shell.OpenAsync(options, id)
+        ├─ [UI 线程] 校验未释放 → 校验 id → 查重 → 构造窗口 → 注册（Add）
+        └─ window.InitializeAndShowAsync(token)
+              ├─ EnsureHandle()        必须先有 HWND，再创建 controller
+              ├─ Show() + 居中 / 约束到工作区
+              ├─ 等待 Loaded / Render 排空
+              └─ InitializeWebViewAsync(token)
+                    ├─ [串行] EnsureCoreWebView2Async
+                    ├─ 收紧安全设置
+                    ├─ 注入遮罩脚本 + 页面桥脚本
+                    ├─ 首次导航（30s 超时；失败不抛，写入 LastNavigationError）
+                    └─ Focus 时 Activate()
+        └─ OpenedAsync 回调
+```
+
+**关键约束**：`EnsureHandle()` 必须在创建 WebView2 controller **之前**，否则自绘标题栏会
+落在 DWM 尚未接管客户区的时间点，出现绘制错位。
+
+**失败隔离**：窗口显示与 WebView2 初始化是两段独立兜底。窗口先出来；WebView 失败时保留
+窗口并显示原因，避免"一闪即消"。
+
+### 5.2 加载呈现（3.0.0 重新设计）
+
+**现状问题**：库里存在**两套加载指示**，文案相同（"正在加载…"），且底色三处硬编码白色：
+
+| # | 机制 | 生效时机 | 底色 |
+|---|---|---|---|
+| A | WPF `Border` + `ProgressBar`（`_initializationSurface`） | 仅首次加载（WebView 此时 `Hidden`） | `Brushes.White`（`:593`） |
+| B | 注入页面的 DOM 遮罩（`WebViewPresentationMask`） | 首次加载**之后**的每次导航 | `'#ffffff'`（`:25`） |
+
+之所以存在两套，是因为**空域（airspace）限制**：`WebView2` 承载在原生 HWND 上，
+WPF 元素无法覆盖它。故 A 只能在"WebView 隐藏"时使用，B 则把遮罩注入页面 DOM 内部
+（`position: fixed` + `z-index: 2147483647` + closed shadow root）以绕开该限制。
+
+**3.0.0 方案：统一为 B 一套机制 + 底色贯通**
+
+前置事实（已核实，决定了改法的边界）：
+
+- `_webView` 初值是 `Visibility.Hidden`（`:27`），直到**首次导航完成后**才在 `:216`
+  变为 `Visible`。
+- 因此**首次加载全程 WebView 都是隐藏的**，注入的遮罩虽然在文档里，用户却看不到它；
+  此时用户看到的是 WPF 层 A。
+- 也就是说，A 存在的**真正原因**不是空域（此阶段 WebView 隐藏，无冲突），
+  而是"**WebView 未显示时需要一个加载指示**"。
+
+因此"统一为 B"**必须附带一个改动**：让 `_webView` 从一开始就 `Visible`
+（WebView2 在无内容时显示 `DefaultBackgroundColor`，配合 3.3 的 `BackgroundColor` 即为纯色），
+A 才能真正退场。
+
+方案步骤：
+
+1. `WebView2.DefaultBackgroundColor`、`_presentationRoot.Background`、注入遮罩背景
+   全部取 `options.BackgroundColor`；
+2. `_webView` 初始即 `Visible`（不再全程 `Hidden`），加载指示统一由注入遮罩承担；
+3. WPF 层 `Border` **只保留失败面板**用途——WebView2 初始化失败时展示原因。
+
+**收益**：消除重复机制、消除三处硬编码白色、消除白闪。
+**代价**：
+- 从窗口出现到 core 就绪之间（数百毫秒）只有 `BackgroundColor` 纯色、**无转圈**；
+- `_webView` 提前可见后，若 core 初始化失败，失败面板需要像现在这样**覆盖**住 WebView
+  （现实现为 `_webView.Visibility = Collapsed`，该路径保留）。
+
+> **待确认（决策点 D-A）**：是否接受"core 就绪前无 spinner"以换取机制统一？
+> 保守替代：保留 A、仅把其底色改为 `BackgroundColor`——两套机制并存但不再白闪。
+> **本文档推荐统一方案**，因"两套文案相同的加载指示"本身是维护负担。
+
+### 5.3 页面侧控制桥
+
+注入 `globalThis.browserShell.window`（冻结对象）：
+
+| 成员 | 行为 |
+|---|---|
+| `windowId` | 当前窗口标识 |
+| `minimize()` / `maximize()` / `restore()` | 单向，无回执 |
+| `close()` | 返回 `Promise<{accepted, code, message}>`，经 `requestId` 关联回执 |
+
+消息往返：
+
+```
+页面 → 宿主   { type:'shellWindow', operation, value, requestId }
+              → core.WebMessageReceived → HandleBridgeMessageAsync
+宿主 → 页面   { type:'shellWindowCloseResult', requestId, accepted, code, message }
+              → PostWebMessageAsJson
+```
+
+**约束**：`WebMessageReceived` 仅由**顶层文档**触发。iframe 内的页面**拿不到此桥**。
+
+### 5.4 关闭裁决
+
+```
+来源 A  标题栏关闭按钮   → WPF Closing 事件
+来源 B  页面 browserShell.window.close()  → WebMessage
+来源 C  宿主 window.CloseAsync(source) / shell.CloseAsync(id, source)
+
+        ClosingAsync == null  → 直接关闭
+        否则 → 请求裁决
+                 ├─ 已有裁决在途 → 回 CLOSE_PENDING（来源 B 专用）
+                 ├─ accept → CloseCore()
+                 └─ reject → 保持打开
+```
+
+- 标题栏关闭用 `eventArgs.Cancel = true` 拦截后转入裁决；`CloseCore()` 用 `_forceClose`
+  放行真正的 `Close()`，避免二次裁决死循环。
+- `CloseCore()` 先 `Hide()` 再 `Close()`，并清空 `Owner`。
+- 裁决回调抛异常时按**拒绝**处理（来源 B 回传 `HANDLER_FAILED`）。
+- 窗口**真正关闭后**回调所有者移出注册表，且**先移出再回调 `ClosedAsync`**，
+  以保证 `ClosedAsync` 中读到的 `WindowCount` 已更新。
+
+### 5.5 同源约束
+
+`AllowedOrigins` 为空 = 不限制；非空时同时作用于：
+
+- `NavigationStarting` —— 拦截跨 Origin 导航；
+- `NewWindowRequested` —— 跨 Origin 的新窗口请求被忽略。
+
+`NewWindowRequestedAsync` 为 null 时，页面发起的新窗口请求在**当前窗口内导航**。
+
+---
+
+## 六、必须修复的缺陷（开发任务）
+
+按优先级排序。每项都已在源码中核实，并给出验收标准。
+
+### 6.1 深色页面白闪（体验缺陷）
+
+**现象**：深色页面点"重新加载当前页"时闪一下白屏。已在 `demo.html` + headless Edge 复现。
+
+**成因**：遮罩脚本以 `let visible = true` 立即立起，且背景硬编码 `#ffffff`；
+揭罩发生在 `NavigationCompleted`（即 `body.onload`），故白遮罩覆盖**整个加载期**。
+
+**修复**：`BackgroundColor` 贯通三处（见 3.3 / 5.2）。
+
+**验收**：示例页设 `BackgroundColor = #1b1b1f`（与 `demo.html` 一致）后，
+反复点"重新加载当前页"**无白闪**。
+
+### 6.2 导航失败时遮罩不揭，页面永久点不动（严重）
+
+**成因**：后续导航的揭罩条件带了 `IsSuccess`：
+
+```csharp
+if (initialPresentationCompleted && eventArgs.IsSuccess)   // WebViewWindow.cs:175
+    _ = RevealCompletedNavigationAsync(core);
+```
+
+遮罩 `pointerEvents: 'auto'` 且全屏。**加载失败（断网 / 404 / 超时）时揭罩被跳过**，
+窗口永久停在白色转圈界面且鼠标点不进去。对照首次加载的揭罩（`:213`）是**无条件**的。
+
+**修复**：无论成败都揭罩（失败时页面本就是错误页，也应可见）。
+并保留现有 `catch { }` 行为，遮罩操作失败不得阻断导航。
+
+**验收**：对不可达地址执行导航（如断开网络后点链接），窗口在超时后显示错误页且**可交互**，
+不停留于遮罩。
+
+### 6.3 页面桥消息解析无防护（严重）
+
+**成因**：`WebMessageReceived` 以 fire-and-forget 接收，而 handler 无 try/catch：
+
+```csharp
+core.WebMessageReceived += (_, e) => _ = HandleBridgeMessageAsync(e.WebMessageAsJson);  // :169
+```
+
+`HandleBridgeMessageAsync` 首行即 `JsonDocument.Parse` + `TryGetProperty`。而
+`JsonElement.TryGetProperty` 在 `ValueKind != Object` 时**抛 `InvalidOperationException`**。
+页面可发送**任意 JSON 值**：
+
+```js
+chrome.webview.postMessage(42);      // → "42"      → ValueKind = Number → 抛异常
+chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   → 抛异常
+```
+
+（已用 Roslyn/JSON 实测确认该异常行为。）异常成为 **unobserved task exception**。
+注意 `AreHostObjectsAllowed = false` **挡不住**这条通道——它是宿主通信通道，不属于 host objects。
+
+**修复**：解析前判断 `ValueKind == JsonValueKind.Object`，并给整个方法加 try/catch。
+
+**验收**：页面执行 `chrome.webview.postMessage(42)` / `null` / 字符串 / 数组后，
+宿主不产生任何未观察异常，窗口功能正常。
+
+### 6.4 `close()` 回执可能永久挂起（健壮性）
+
+**成因**：页面侧 `closeRequests` 是 `Map`，**无超时**。若宿主未回执
+（如裁决中崩溃，或 `PostCloseResult` 因 `CoreWebView2` 为 null 而静默跳过），
+`await browserShell.window.close()` **永久挂起**，Map 条目亦不释放。
+
+**修复**：页面侧 `close()` 增加超时（建议 5s），超时返回
+`{ accepted:false, code:'TIMEOUT', message:'宿主未响应。' }` 并清理 Map。
+
+**验收**：模拟宿主不回执，`await close()` 在超时后兑现且不泄漏条目。
+
+### 6.5 注入脚本品牌残留
+
+遮罩脚本内仍是 `SoftwareHub` 标识：`WebViewPresentationMask.cs:11`（`__softwarehub_presentation_mask__`）、
+`:66`、`:93`（`__softwareHubSetPresentationMask`）。迁移报告"残留 = 0"只统计了 C# 标识符，
+**未覆盖内嵌 JS 字符串**。
+
+**修复**：重命名为 `__browserShellPresentationMask` / `__browserShellSetPresentationMask`。
+该全局名未对外文档化，且 3.0.0 本就是破坏性版本，**现在是改名成本最低的时机**。
+
+### 6.6 `LastNavigationError` 不重置（一致性）
+
+成功导航后该属性保留上一次的失败原因，宿主无法据此判断"当前是否正常"。
+
+**修复**：导航开始或成功时重置为 null。
+
+### 6.7 桥未校验消息来源（安全，视场景）
+
+`WebMessageReceived` 未检查 `eventArgs.Source`（发送方文档 URI）。
+当前只校验 `type == 'shellWindow'`。若宿主承载**非受信页面**，该页面也能调
+`close()` / `minimize()` 操作自身窗口，并触发宿主的 `ClosingAsync` 裁决。
+
+**处理**：**待确认（决策点 D-B）**——宿主是否可能承载第三方页面？
+- 若仅承载自有页面：不处理，保持简单；
+- 若可能承载第三方：用 `eventArgs.Source` 做来源校验。
+
+---
+
+## 七、非目标（明确不做）
+
+以下能力**明确不在 3.0.0 范围**，如需应另立项目或由宿主实现：
+
+| 非目标 | 理由 |
+|---|---|
+| 跨平台（macOS / Linux） | WPF 限定 Windows；跨平台应评估其他技术栈 |
+| 合成式承载（`CoreWebView2CompositionController`） | 可消除空域问题，但需自行实现输入/焦点/DPI/无障碍，成本远超"基础套壳" |
+| 进程间协议 / 远程会话 | 已删除，不恢复 |
+| 页面业务登录、权限模型 | 属宿主 |
+| 模态子窗口输入门控 | 已删除（无生产调用点），不恢复 |
+| 多窗口布局策略（平铺 / 层叠 / 记忆位置） | 属宿主 |
+| DI 容器集成 | 属宿主 |
+| 安全开关的开放（DevTools / 下载 / 权限放开） | 保持"默认全部拒绝"；如需放开另议 |
+
+---
+
+## 八、验收标准
+
+3.0.0 交付需**同时**满足：
+
+| # | 标准 |
+|---|---|
+| 1 | `dotnet build -c Release` **0 警告 0 错误** |
+| 2 | `dotnet test` 全绿（须在 Windows 上执行） |
+| 3 | 公开类型恰为 **4 个**，且 `WebViewWindowEnvironment` 不再可见 |
+| 4 | 公开成员中**无**纯转发包装（4.1 清单全部移除） |
+| 5 | 6.1–6.6 全部修复并有对应测试或可复现验证步骤 |
+| 6 | 示例应用可运行，且 `BackgroundColor` 设为深色时**无白闪** |
+| 7 | 设计文档与本实现一致（含 3.0.0 差异表） |
+| 8 | 破坏性变更已在 `README.md` 与示例中同步 |
+
+**测试补齐**（当前仅 1 文件 / 24 行，有效覆盖率接近零）：
+
+| 优先 | 目标 | 说明 |
+|---|---|---|
+| 高 | `WebViewShell` 窗口托管 | 唯一性、拒绝关闭后仍可查、自发关闭后移除、并发 `OpenAsync` |
+| 高 | 关闭裁决矩阵 | 三来源 × 接受/拒绝/异常/在途 |
+| 中 | 桥消息解析 | 6.3 的非法载荷用例（纯逻辑，无需真实 WebView2） |
+| 中 | `WebView2InitializationCoordinator` | 串行性与取消（纯逻辑，无需真实 WebView2） |
+| 低 | 环境与 Profile 隔离 | 需真实 WebView2 Runtime |
+
+---
+
+## 九、附录：现状审计依据
+
+本节保留 2.0.0 的体检结论，作为第三节设计决策的依据。
+
+### 9.1 规模
+
+| 文件 | 行数 |
+|---|---|
+| `WebViewWindow.cs` | 595（占全库 54%） |
+| `WebViewShell.cs` | 179 |
+| `WebViewWindowEnvironment.cs` | 122 |
+| `WebViewPresentationMask.cs` | 97 |
+| `WebViewWindowOptions.cs` | 82 |
+| `WebView2InitializationCoordinator.cs` | 28 |
+| **合计** | **1103** |
+
+`WebViewWindow.cs` 单文件承担 6 类关注点（外观、时序、装配、失败呈现、关闭裁决、注入脚本），
+是可分离的。3.0.0 删除 4.1/4.2 内容后会缩小，进一步拆分留待实现阶段按需进行。
+
+### 9.2 公开成员调用情况（2.0.0）
+
+| 成员 | 仓内调用 |
+|---|---|
+| `WebViewShell.CreateAsync` / `OpenAsync` / `CloseAsync` / `DisposeAsync` | 有（示例、测试） |
+| `WebViewWindow.CloseAsync` | 有（示例） |
+| `MinimizeAsync` / `MaximizeAsync` / `RestoreAsync` / `SetTitleAsync` / `ShowWindowAsync` / `HideAsync` | **0** |
+| `NavigateAsync` / `ReloadAsync` / `ApplyOptions` / `ClosePermanently` / `IsClosed` | **0** |
+| `WindowCount` / `Windows` / `TryGetWindow` | **0** |
+| `WebViewWindowEnvironment.Core` / `CreateControllerOptions` | **0**（且无处可用） |
+
+### 9.3 安全默认值（保持不变）
+
+`InitializeWebViewAsync` 中显式收紧，**默认拒绝**：
+
+- `AreHostObjectsAllowed = false`
+- `AreDefaultScriptDialogsEnabled = false`
+- `AreDevToolsEnabled = false`
+- `AreDefaultContextMenusEnabled = false`
+- `IsStatusBarEnabled = false`
+- `PermissionRequested` 一律 **Deny**
+- `DownloadStarting` 一律 **Cancel**
+
+（`IsWebMessageEnabled` **不设置**，取默认 `true`——这是页面桥能工作的前提，属正确的沉默。）
+
+### 9.4 已修复项（2.0.0 期间）
+
+| 项 | 结论 |
+|---|---|
+| 模态输入门控三件套（152 行 + 166 行测试） | 无生产调用点，已删除 |
+| 窗口 ID 唯一性 | 查重与注册已并入同一 UI 线程回调，改用 `Add` |
+| 关闭被拒后仍移出注册表 | 改为由真正关闭时的回调移除 |
+| 自发关闭不通知 shell | 已由窗口关闭回调覆盖三来源 |
+| 目录结构 | `Windows/` 空壳分层已拍平 |
+
+### 9.5 当前测试
+
+| 测试文件 | 行数 |
+|---|---|
+| `WebViewPresentationMaskTests.cs` | 24 |
+
+`dotnet test` 依赖 `Microsoft.WindowsDesktop.App`，**须在 Windows 上运行**。
+
+---
+
+## 十、待确认决策点
+
+| 编号 | 决策点 | 选项 |
+|---|---|---|
+| **D-A** | 加载指示是否统一为注入遮罩一套机制 | 统一（推荐，消除重复）/ 保留 WPF 面板但改其底色 |
+| **D-B** | 桥是否校验 `eventArgs.Source` | 承载第三方页面则校验 / 仅自有页面则不校验 |
+| **D-C** | `WindowCount` / `Windows` / `TryGetWindow` 是否保留 | 保留（推荐，R1 自然组成）/ 极简则删 |
+| **D-D** | 版本号是否采用 3.0.0 | 采用（破坏性变更）/ 其它 |
 
 ---
 
 ## 相关文档
 
 - [`../README.md`](../README.md) —— 仓库总览
-- [`迁移报告.md`](迁移报告.md) —— 从 `SoftwareHub.DesktopAgent` 迁入与后续瘦身的完整记录
+- [`迁移报告.md`](迁移报告.md) —— 从 `SoftwareHub.DesktopAgent` 迁入与瘦身的完整记录
 - [`../src/BrowserShell.WebView.Wpf/README.md`](../src/BrowserShell.WebView.Wpf/README.md) —— 面向使用者的快速开始
