@@ -1,11 +1,9 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.Service.SDK", "src\BrowserShell.Service.SDK\BrowserShell.Service.SDK.csproj", "{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BrowserShell.WebView.Wpf", "src\BrowserShell.WebView.Wpf\BrowserShell.WebView.Wpf.csproj", "{CB5BB452-A89D-DC39-9B31-E54FB3CB7191}"
 EndProject
@@ -27,18 +25,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Debug|x64.Build.0 = Debug|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Debug|x86.Build.0 = Debug|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Release|Any CPU.Build.0 = Release|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Release|x64.ActiveCfg = Release|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Release|x64.Build.0 = Release|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Release|x86.ActiveCfg = Release|Any CPU
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64}.Release|x86.Build.0 = Release|Any CPU
 		{CB5BB452-A89D-DC39-9B31-E54FB3CB7191}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{CB5BB452-A89D-DC39-9B31-E54FB3CB7191}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CB5BB452-A89D-DC39-9B31-E54FB3CB7191}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -80,7 +66,6 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{75BF7BBE-C9A5-234F-BDB5-B21D71BCBD64} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{CB5BB452-A89D-DC39-9B31-E54FB3CB7191} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{84D82A23-03FE-A84F-B564-228B1362165E} = {63F36057-D225-43D9-BD60-4E9638C32160}
 		{238B940C-C50E-4B53-9CE2-A15E3080095B} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}

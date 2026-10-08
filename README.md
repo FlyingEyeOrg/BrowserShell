@@ -1,6 +1,6 @@
 # BrowserShell
 
-Windows 桌面 Web 外壳：把 Web 页面承载到用户桌面，供任意服务通过 SDK 打开与管理窗口。
+Windows 桌面 Web 外壳：把 Web 页面承载到 WPF 窗口。
 
 本仓库由 SoftwareHub 的 DesktopAgent 迁移而来，独立于 SoftwareHub 发布。
 
@@ -9,7 +9,6 @@ Windows 桌面 Web 外壳：把 Web 页面承载到用户桌面，供任意服�
 | 项目 | TFM | 说明 |
 |---|---|---|
 | `src/BrowserShell.WebView.Wpf` | `net8.0-windows` | 桌面 Web 外壳类库。在 `ChromeWindow` 上承载 WebView2 |
-| `src/BrowserShell.Service.SDK` | `net8.0` | 服务侧窗口能力 SDK。服务通过它连接外壳、打开与管理桌面窗口 |
 | `tests/BrowserShell.WebView.Wpf.Tests` | `net8.0-windows` | 外壳单元测试 |
 | `samples/BrowserShell.WebView.Wpf.Sample` | `net8.0-windows` | 可运行的示例宿主：选择标题栏样式/配色、打开窗口、关闭裁决 |
 
@@ -122,21 +121,18 @@ public partial class App : Application
 
 ```
 宿主 exe（引用方自建）
-   ├──> BrowserShell.WebView.Wpf  (net8.0-windows)
-   └──> BrowserShell.Service.SDK  (net8.0)
+   └──> BrowserShell.WebView.Wpf  (net8.0-windows)
 
 BrowserShell.WebView.Wpf ──> WindowChromeKit.Wpf + Microsoft.Web.WebView2
-BrowserShell.Service.SDK ──> 不引用 WPF
 ```
 
-`BrowserShell.Service.SDK` 保持 `net8.0` 且无 WPF 依赖，因此 ASP.NET Core 服务引用它不会引入桌面依赖链。
+本库是**纯进程内类库**：不含任何进程间协议、代理层或服务端连接组件。
 
 ## NuGet 自动发布
 
 仓库默认不在本地跑 CI；发布工作流会在打包前执行 Release 构建与全部测试，避免发布无效包。
 
-**只发布 `BrowserShell.WebView.Wpf`**（`net8.0-windows`）。
-`BrowserShell.Service.SDK` 不发布，仅参与构建与测试。
+发布 `BrowserShell.WebView.Wpf`（`net8.0-windows`），同时产出 `.snupkg` 符号包。
 
 自动发布使用 **NuGet.org Trusted Publishing**（OIDC）。NuGet Policy 中的仓库、
 `publish-nuget.yml` 工作流和 `production` environment 必须与本仓库一致；
@@ -153,6 +149,10 @@ git push origin v2.0.1
 
 ## 状态
 
-迁移自 `SoftwareHub.DesktopAgent`（1.0.4），本仓库版本 `2.0.0`。
+迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf 2.0.0`。
 
 消费方集成层（原 `SoftwareHub.Service.SDK.Hosting/Desktop`）不在本仓库内：它是 SoftwareHub 对 BrowserShell 的适配层，需另行接入。
+
+原 `src/BrowserShell.Service.SDK`（服务侧窗口能力 SDK，`net8.0`）**已删除**：
+它与本库无代码依赖，其运行时（Kestrel/SignalR 代理层）在更早的重构中已整块移除，
+保留它只会让"BrowserShell 是什么"变得含混。迁移过程见 [`docs/迁移报告.md`](docs/迁移报告.md)。

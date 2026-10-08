@@ -39,8 +39,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          # 只发布 BrowserShell.WebView.Wpf；BrowserShell.Service.SDK 不发布（不进入 pack/push），
-          # 但仍参与下面的 restore/build，以免它在仓库里静默损坏。
+          # 本仓库只发布 BrowserShell.WebView.Wpf 一个包。
           # tag（v*）只作为触发条件，不决定版本号；手动 dispatch 时填的 package_version
           # 会覆盖 csproj 中的 Version（发应急版本用）。
           function Get-PackageVersion([string]$projectPath) {
@@ -65,13 +64,12 @@ jobs:
 
       # 说明：逐个项目执行 restore/build，而不是跑整个 .sln——
       # dotnet CLI 的 build/restore 一次只接受一个项目参数（MSB1008）。
-      # 示例与 Service.SDK 不是发布内容，但参与构建可提前暴露破坏性变更。
+      # 示例不是发布内容，但参与构建可提前暴露破坏性变更。
       - name: Restore
         shell: pwsh
         run: |
           $projects = @(
               "src/BrowserShell.WebView.Wpf/BrowserShell.WebView.Wpf.csproj",
-              "src/BrowserShell.Service.SDK/BrowserShell.Service.SDK.csproj",
               "samples/BrowserShell.WebView.Wpf.Sample/BrowserShell.WebView.Wpf.Sample.csproj",
               "tests/BrowserShell.WebView.Wpf.Tests/BrowserShell.WebView.Wpf.Tests.csproj"
           )
@@ -85,7 +83,6 @@ jobs:
         run: |
           $projects = @(
               "src/BrowserShell.WebView.Wpf/BrowserShell.WebView.Wpf.csproj",
-              "src/BrowserShell.Service.SDK/BrowserShell.Service.SDK.csproj",
               "samples/BrowserShell.WebView.Wpf.Sample/BrowserShell.WebView.Wpf.Sample.csproj",
               "tests/BrowserShell.WebView.Wpf.Tests/BrowserShell.WebView.Wpf.Tests.csproj"
           )

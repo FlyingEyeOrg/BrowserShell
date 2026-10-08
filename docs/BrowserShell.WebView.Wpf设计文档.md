@@ -41,13 +41,14 @@
 | 项目 | TFM | 关系 |
 |---|---|---|
 | `BrowserShell.WebView.Wpf` | `net8.0-windows` | 本库 |
-| `BrowserShell.Service.SDK` | `net8.0` | **无代码依赖**，两者互不引用 |
 | `BrowserShell.WebView.Wpf.Sample` | `net8.0-windows` | 本库示例宿主 |
 | `BrowserShell.WebView.Wpf.Tests` | `net8.0-windows` | 本库单元测试 |
 
-> `BrowserShell.Service.SDK` 描述的是"服务通过 SDK 打开桌面窗口"的**进程间**形态，
-> 其运行时（Kestrel/SignalR 代理层）已在重构中整块删除。本库因此是**纯进程内类库**。
+> 本库是**纯进程内类库**：不含进程间协议、代理层或服务端连接组件。
 > 本文档中"宿主"一律指**引用本库的进程内宿主程序**。
+>
+> 原先并列的 `BrowserShell.Service.SDK`（服务侧窗口能力 SDK）**已删除**——
+> 它与本库无代码依赖，其运行时（Kestrel/SignalR 代理层）在更早的重构中已整块移除。
 
 ---
 
