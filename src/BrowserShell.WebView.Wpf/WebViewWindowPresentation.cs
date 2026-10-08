@@ -17,9 +17,17 @@ namespace BrowserShell.WebView.Wpf;
 /// </remarks>
 internal static class WebViewWindowPresentation
 {
-    /// <summary>创建"正在加载…"面板，作为首次加载期间（WebView 尚不可见时）的内容区。</summary>
-    public static Border CreateLoadingSurface()
+    /// <summary>
+    /// 创建"正在加载…"面板，作为首次加载期间（WebView 尚不可见时）的内容区。
+    /// </summary>
+    /// <param name="background">
+    /// 面板底色，应与 <see cref="WebViewWindowOptions.BackgroundColor"/> 一致，
+    /// 否则深色页面在首次加载期间会露出浅色底（即"白闪"）。
+    /// </param>
+    /// <param name="foreground">指示文字颜色，需与 <paramref name="background"/> 形成足够对比。</param>
+    public static Border CreateLoadingSurface(Brush background, Brush? foreground = null)
     {
+        ArgumentNullException.ThrowIfNull(background);
         var progress = new ProgressBar
         {
             Width = 180,
@@ -32,7 +40,7 @@ internal static class WebViewWindowPresentation
             Text = "正在加载…",
             FontFamily = new FontFamily("Segoe UI"),
             FontSize = 13,
-            Foreground = Brushes.DimGray,
+            Foreground = foreground ?? Brushes.DimGray,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
         var content = new StackPanel
@@ -42,7 +50,7 @@ internal static class WebViewWindowPresentation
         };
         content.Children.Add(progress);
         content.Children.Add(label);
-        return new Border { Background = Brushes.White, Child = content };
+        return new Border { Background = background, Child = content };
     }
 
     /// <summary>

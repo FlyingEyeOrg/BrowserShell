@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -63,8 +64,9 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         VerticalAlignment = VerticalAlignment.Stretch,
         Visibility = Visibility.Hidden,
     };
+    // 背景仅作字段默认值，实际取值在构造时由 ApplyOptions 按 BackgroundColor 覆盖。
     private readonly Grid _presentationRoot = new() { Background = Brushes.White };
-    private readonly Border _initializationSurface = WebViewWindowPresentation.CreateLoadingSurface();
+    private readonly Border _initializationSurface = WebViewWindowPresentation.CreateLoadingSurface(Brushes.White);
     private readonly CoreWebView2Environment _environment;
     private readonly CoreWebView2ControllerOptions _controllerOptions;
     private readonly WebView2InitializationCoordinator _webViewInitialization;
@@ -157,7 +159,7 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     public bool IsClosed => Volatile.Read(ref _closedOnceFlag) != 0;
 
     /// <summary>
-    /// 最近一次导航的失败原因；为 <c>null</c> 表示无已知失败。
+    /// 最近一次<b>首次导航</b>相关的失败原因；为 <c>null</c> 表示无已知失败。
     /// </summary>
     /// <remarks>
     /// <para>下列情形会写入该值：</para>
@@ -166,11 +168,13 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     ///   <item><description>首次导航失败（网络不可达、DNS 失败等），值为"首次导航失败。"；</description></item>
     ///   <item><description>首次导航超时（30 秒），值为"首次导航超时。"。</description></item>
     /// </list>
-    /// <para><b>注意</b>：当前实现<b>不会在导航成功时重置</b>该属性，因此它表示
-    /// "曾经发生过失败"而非"当前处于失败状态"。调用方若需判断当前状态，
-    /// 应结合页面实际加载结果，或等待后续版本重置语义。</para>
-    /// <para>首次导航失败不会抛异常：窗口本身已可用，调用方可自行重试
-    /// （例如再次调用 <see cref="ReloadAsync"/>）。</para>
+    /// <para><b>重置时机</b>：任何一次<b>成功</b>的导航都会把它清回 <c>null</c>。
+    /// 因此宿主可据此判断"当前是否正常"：即使首次加载失败，用户在页面内重试成功
+    /// （或宿主调用 <see cref="ReloadAsync"/>）后该属性会自动恢复为 <c>null</c>。</para>
+    /// <para><b>失败时为何不写入</b>：官方文档指出 <c>IsSuccess</c> 为 <c>false</c> 也可能是
+    /// 非灾难性情形（页面主动跳转、<c>window.stop()</c>、被 <see cref="WebViewWindowOptions.AllowedOrigins"/>
+    /// 主动拦截、应用自行取消），一律记为失败会产生大量误导信息，因此不做记录。</para>
+    /// <para>首次导航失败不会抛异常：窗口本身已可用，调用方可自行重试。</para>
     /// </remarks>
     public string? LastNavigationError { get; private set; }
 
@@ -264,7 +268,8 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
                 eventArgs.Cancel = true;
             }
         };
-        await core.AddScriptToExecuteOnDocumentCreatedAsync(WebViewPresentationMask.InitializationScript);
+        await core.AddScriptToExecuteOnDocumentCreatedAsync(
+            WebViewPresentationMask.CreateInitializationScript(_options.BackgroundColor));
         await core.AddScriptToExecuteOnDocumentCreatedAsync(WebViewWindowBridge.CreateScript(Id));
         core.WebMessageReceived += (_, eventArgs) => _ = HandleBridgeMessageAsync(eventArgs.WebMessageAsJson);
 
@@ -272,7 +277,24 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         var initialPresentationCompleted = false;
         core.NavigationCompleted += (_, eventArgs) =>
         {
-            if (initialPresentationCompleted && eventArgs.IsSuccess)
+            // 成功导航即清除上一次的失败记录，使 LastNavigationError 反映「当前是否正常」
+            // 而非「历史上是否失败过」——否则一次失败会永久留在属性上误导宿主。
+            //
+            // 刻意【不】在 !IsSuccess 时写入错误：官方文档明确 IsSuccess 为 false 也可能是
+            // 非灾难性情形（页面主动跳转、window.stop()、被 AllowedOrigins 主动拦截、
+            // 应用自行取消导航），一律记为失败会产生大量误导信息。
+            // 真正的失败记录点仍在首次导航（见下方 initialNavigation 处理）。
+            if (eventArgs.IsSuccess)
+            {
+                LastNavigationError = null;
+            }
+
+            // 无论成败都必须揭罩。NavigationCompleted 的定义是「页面完全加载（body.onload）
+            // 或加载因错误而停止」，失败时 WebView 显示的是错误页——它同样是可见内容。
+            // 若这里附加 IsSuccess 条件（曾经如此），加载失败（断网／404／超时）会让全屏且
+            // pointer-events:auto 的遮罩永久留在页面上：窗口停在转圈界面且鼠标点不进去，
+            // 只能关闭重开。失败原因另有 LastNavigationError 记录，不需要靠遮罩表达。
+            if (initialPresentationCompleted)
             {
                 _ = RevealCompletedNavigationAsync(core);
             }
@@ -350,6 +372,33 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         ShowInTaskbar = options.ShowInTaskbar;
         TitleBarStyle = options.TitleBarStyle;
         TitleBarPalette = options.TitleBarPalette;
+        ApplyBackgroundColor(options.BackgroundColor);
+    }
+
+    /// <summary>
+    /// 把底色贯通到三处显示层：WebView 无内容时的底色、窗口内容根、以及 WPF 加载面板。
+    /// </summary>
+    /// <remarks>
+    /// <para>三者必须一致，否则未加载出内容的那一段时间会露出与页面不同的颜色——
+    /// 深色页面配浅色底即表现为"白闪"。</para>
+    /// <para>注入遮罩的底色在 <see cref="InitializeWebViewAsync"/> 生成脚本时取用
+    /// （脚本一次性注入，无法在此处更新）。</para>
+    /// </remarks>
+    private void ApplyBackgroundColor(Color color)
+    {
+        _webView.DefaultBackgroundColor = System.Drawing.Color.FromArgb(color.A, color.R, color.G, color.B);
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        _presentationRoot.Background = brush;
+        _initializationSurface.Background = brush;
+        // 深色底需要更亮的前景色，否则"正在加载…"文字在深色上看不清。
+        if (_initializationSurface.Child is Panel panel)
+        {
+            foreach (var child in panel.Children.OfType<TextBlock>())
+            {
+                child.Foreground = new SolidColorBrush(WebViewPresentationMask.PickForeground(color));
+            }
+        }
     }
 
     /// <summary>导航到绝对地址，受 <see cref="WebViewWindowOptions.AllowedOrigins"/> 约束。</summary>
@@ -553,23 +602,52 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// 处理页面桥发来的消息。页面可发送<b>任意</b>内容，因此本方法必须容忍一切输入。
+    /// </summary>
+    /// <remarks>
+    /// <para>这里曾是无防护的 fire-and-forget，而 <c>System.Text.Json</c> 有三处会抛
+    /// <see cref="InvalidOperationException"/>／<see cref="JsonException"/>：</para>
+    /// <list type="bullet">
+    ///   <item><description><c>JsonDocument.Parse</c> 对非 JSON 文本抛 <c>JsonException</c>；</description></item>
+    ///   <item><description><c>TryGetProperty</c> 在根节点<b>不是对象</b>时抛 <c>InvalidOperationException</c>
+    ///   （页面发 <c>postMessage(42)</c> 即触发）；</description></item>
+    ///   <item><description><c>GetString()</c> 在值<b>不是字符串</b>时抛 <c>InvalidOperationException</c>
+    ///   （如 <c>{"type":42}</c>、<c>{"type":"shellWindow","operation":42}</c>）。</description></item>
+    /// </list>
+    /// <para>上述均为已实测确认的行为。若不拦截，异常会成为未观察任务异常。
+    /// 注意 <c>AreHostObjectsAllowed = false</c> <b>挡不住</b>这条通道——它是宿主通信通道，
+    /// 不属于 host objects。</para>
+    /// <para>未知或畸形消息一律<b>静默忽略</b>：这是页面可控的输入，不应影响窗口功能。</para>
+    /// </remarks>
     private async Task HandleBridgeMessageAsync(string json)
+    {
+        try
+        {
+            await HandleBridgeMessageCoreAsync(json);
+        }
+        catch (Exception)
+        {
+            // 页面发来的任意内容都不应影响宿主：解析失败、类型不符、以及处理器自身
+            // （如宿主的 ClosingAsync）抛出的异常，全部在此隔离。
+        }
+    }
+
+    private async Task HandleBridgeMessageCoreAsync(string json)
     {
         using var document = JsonDocument.Parse(json);
         var root = document.RootElement;
-        if (!root.TryGetProperty("type", out var type) || type.GetString() != "shellWindow") return;
-        var operation = root.TryGetProperty("operation", out var operationElement)
-            ? operationElement.GetString()
-            : null;
+        // 根节点不是对象时 TryGetProperty 会抛，必须先判断。
+        if (root.ValueKind != JsonValueKind.Object) return;
+        if (!TryGetString(root, "type", out var messageType) || messageType != "shellWindow") return;
+        if (!TryGetString(root, "operation", out var operation)) return;
         switch (operation)
         {
             case "minimize": WindowState = WindowState.Minimized; break;
             case "maximize": WindowState = WindowState.Maximized; break;
             case "restore": WindowState = WindowState.Normal; break;
             case "close":
-                var requestId = root.TryGetProperty("requestId", out var requestIdElement)
-                    ? requestIdElement.GetString()
-                    : null;
+                TryGetString(root, "requestId", out var requestId);
                 await RequestCloseAsync("Page", requestId);
                 break;
         }
@@ -739,6 +817,21 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     private static bool IsFinitePositive(double value) => double.IsFinite(value) && value > 0;
 
     private static string GetOrigin(Uri uri) => uri.GetLeftPart(UriPartial.Authority);
+
+    /// <summary>
+    /// 读取对象的字符串属性；属性缺失或值不是字符串时返回 <c>false</c> 而非抛异常。
+    /// </summary>
+    /// <remarks>页面的输入不可信，<c>JsonElement.GetString()</c> 对非字符串值会抛
+    /// <see cref="InvalidOperationException"/>，故统一经此读取。</remarks>
+    private static bool TryGetString(JsonElement element, string propertyName, [NotNullWhen(true)] out string? value)
+    {
+        value = null;
+        if (element.ValueKind != JsonValueKind.Object) return false;
+        if (!element.TryGetProperty(propertyName, out var property)) return false;
+        if (property.ValueKind != JsonValueKind.String) return false;
+        value = property.GetString();
+        return value is not null;
+    }
 
     /// <summary>
     /// 把操作封送回 UI 线程执行；已在 UI 线程时同步直接执行，避免无谓的队列往返。

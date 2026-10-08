@@ -516,7 +516,24 @@ A 才能真正退场。
 
 按优先级排序。每项都已在源码中核实，并给出验收标准。
 
-### 6.1 深色页面白闪（体验缺陷）
+**修复进度**：6.1 – 6.6 与 6.8 **均已修复并有验证**；6.7 仍待决策点 D-B 确认。
+
+| 项 | 状态 | 验证方式 |
+|---|---|---|
+| 6.1 白闪 | ✅ 已修复 | headless Edge 实测遮罩底色为 `rgb(27,27,31)`；单元测试断言不出现 `#ffffff` |
+| 6.2 遮罩不揭 | ✅ 已修复 | 揭罩条件去掉 `IsSuccess`；headless Edge 实测揭罩后 `display:none` |
+| 6.3 桥解析无防护 | ✅ 已修复 | 实测确认 3 处抛出点（`Parse`／`TryGetProperty`／`GetString`），均加防护 |
+| 6.4 `close()` 挂起 | ✅ 已修复 | headless Edge 实测：宿主不回执时 300ms 超时兑现 `code:'TIMEOUT'` |
+| 6.5 品牌残留 | ✅ 已修复 | 重命名为 `__browserShell*`；`grep` 确认该文件无残留 |
+| 6.6 错误不重置 | ✅ 已修复 | 成功导航时清空；失败不写入（理由见下） |
+| 6.8 线程封送 | ✅ 已修复 | Roslyn 编译 + 并发测试（含旧写法死锁对照） |
+
+> 6.3 的实际抛出点比原记录**多两处**：除 `Parse` 与 `TryGetProperty` 外，
+> `GetString()` 对**非字符串值**同样抛 `InvalidOperationException`
+> （如 `{"type":42}`、`{"type":"shellWindow","operation":42}`、`requestId:42`）。
+> 修复统一经 `TryGetString` 读取，非字符串一律视为缺失。
+
+### 6.1 深色页面白闪（体验缺陷）—— ✅ 已修复
 
 **现象**：深色页面点"重新加载当前页"时闪一下白屏。已在 `demo.html` + headless Edge 复现。
 
@@ -528,7 +545,7 @@ A 才能真正退场。
 **验收**：示例页设 `BackgroundColor = #1b1b1f`（与 `demo.html` 一致）后，
 反复点"重新加载当前页"**无白闪**。
 
-### 6.2 导航失败时遮罩不揭，页面永久点不动（严重）
+### 6.2 导航失败时遮罩不揭，页面永久点不动（严重）—— ✅ 已修复
 
 **成因**：后续导航的揭罩条件带了 `IsSuccess`：
 
@@ -546,7 +563,7 @@ if (initialPresentationCompleted && eventArgs.IsSuccess)   // WebViewWindow.cs:1
 **验收**：对不可达地址执行导航（如断开网络后点链接），窗口在超时后显示错误页且**可交互**，
 不停留于遮罩。
 
-### 6.3 页面桥消息解析无防护（严重）
+### 6.3 页面桥消息解析无防护（严重）—— ✅ 已修复
 
 **成因**：`WebMessageReceived` 以 fire-and-forget 接收，而 handler 无 try/catch：
 
@@ -571,7 +588,7 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 **验收**：页面执行 `chrome.webview.postMessage(42)` / `null` / 字符串 / 数组后，
 宿主不产生任何未观察异常，窗口功能正常。
 
-### 6.4 `close()` 回执可能永久挂起（健壮性）
+### 6.4 `close()` 回执可能永久挂起（健壮性）—— ✅ 已修复
 
 **成因**：页面侧 `closeRequests` 是 `Map`，**无超时**。若宿主未回执
 （如裁决中崩溃，或 `PostCloseResult` 因 `CoreWebView2` 为 null 而静默跳过），
@@ -582,7 +599,7 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 
 **验收**：模拟宿主不回执，`await close()` 在超时后兑现且不泄漏条目。
 
-### 6.5 注入脚本品牌残留
+### 6.5 注入脚本品牌残留 —— ✅ 已修复
 
 遮罩脚本内仍是 `SoftwareHub` 标识：`WebViewPresentationMask.cs:11`（`__softwarehub_presentation_mask__`）、
 `:66`、`:93`（`__softwareHubSetPresentationMask`）。迁移报告"残留 = 0"只统计了 C# 标识符，
@@ -591,7 +608,7 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 **修复**：重命名为 `__browserShellPresentationMask` / `__browserShellSetPresentationMask`。
 该全局名未对外文档化，且 3.0.0 本就是破坏性版本，**现在是改名成本最低的时机**。
 
-### 6.6 `LastNavigationError` 不重置（一致性）
+### 6.6 `LastNavigationError` 不重置（一致性）—— ✅ 已修复
 
 成功导航后该属性保留上一次的失败原因，宿主无法据此判断"当前是否正常"。
 

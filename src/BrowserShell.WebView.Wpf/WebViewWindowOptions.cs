@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using WindowChromeKit.Wpf;
 
 namespace BrowserShell.WebView.Wpf;
@@ -43,6 +44,28 @@ public sealed class WebViewWindowOptions
 
     /// <summary>标题栏配色。默认为 <see cref="ChromeTitleBarPalette.Default"/>，即该样式自带的那套。</summary>
     public ChromeTitleBarPalette TitleBarPalette { get; init; } = ChromeTitleBarPalette.Default;
+
+    /// <summary>
+    /// 未加载出内容期间的窗口底色，默认白色。承载深色页面时应设为与页面一致的深色，以消除白闪。
+    /// </summary>
+    /// <remarks>
+    /// <para>该颜色同时作用于三处：</para>
+    /// <list type="bullet">
+    ///   <item><description>WebView 的 <c>DefaultBackgroundColor</c>——WebView 在无内容时
+    ///   （首次导航前、两次导航之间）显示的底色，也衬在未定义背景的页面之下；</description></item>
+    ///   <item><description>窗口内容根（<c>Grid</c>）的背景——首次加载期间可见的就是它；</description></item>
+    ///   <item><description>注入遮罩的背景——首次加载之后各次导航的加载指示。</description></item>
+    /// </list>
+    ///
+    /// <para><b>限制一（官方记载）</b>：WebView2 文档指出「仅通过属性设置该颜色，仍可能在
+    /// 属性生效前出现一次白闪」，并称改用环境变量 <c>WEBVIEW2_DEFAULT_BACKGROUND_COLOR</c>
+    /// 可解决。本库<b>未</b>采用环境变量，因为它进程级生效、只能设置一次，
+    /// 无法支持「不同窗口不同底色」。因此极早期的白闪在深色场景下仍可能有一帧残留。</para>
+    ///
+    /// <para><b>限制二</b>：WebView2 仅支持<b>不透明</b>或<b>全透明</b>（alpha 为 0 或 255）；
+    /// 半透明会失败。此处不做校验，传入半透明值将由 WebView2 拒绝。</para>
+    /// </remarks>
+    public Color BackgroundColor { get; init; } = Colors.White;
 
     /// <summary>
     /// 允许导航到的 Origin 白名单（形如 <c>https://example.com</c>）。

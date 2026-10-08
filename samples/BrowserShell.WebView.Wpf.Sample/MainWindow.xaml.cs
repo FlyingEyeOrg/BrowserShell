@@ -158,6 +158,9 @@ public partial class MainWindow : ChromeWindow
                 Height = 620,
                 MinWidth = 420,
                 MinHeight = 300,
+                // 与 demo.html 的深色底一致：底色贯通 WebView 默认底色、窗口内容根与加载
+                // 遮罩三处，使加载期间不出现白色闪烁（深色页面配白色底板即为白闪）。
+                BackgroundColor = System.Windows.Media.Color.FromRgb(0x1B, 0x1B, 0x1F),
                 // 不指定标题栏样式，使用 WebViewWindowOptions 的默认值（Chrome）。
             });
 
@@ -165,7 +168,8 @@ public partial class MainWindow : ChromeWindow
             StatusText.Text = window.LastNavigationError is { } error
                 ? $"已打开本地示例页，但首次导航有问题：{error}"
                 : $"已打开本地示例页 {window.Id[..8]}。";
-        }        catch (Exception exception)
+        }
+        catch (Exception exception)
         {
             StatusText.Text = $"打开失败：{exception.Message}";
         }
