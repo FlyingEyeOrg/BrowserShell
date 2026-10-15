@@ -27,8 +27,39 @@ public sealed class WebViewWindowOptions
     /// <summary>是否置于其他窗口之上。</summary>
     public bool Topmost { get; init; }
 
-    /// <summary>是否在首次显示时居中于目标显示器。</summary>
+    /// <summary>是否在首次显示时居中于目标显示器。指定了 <see cref="Left"/> 与 <see cref="Top"/> 时被忽略。</summary>
     public bool Center { get; init; } = true;
+
+    /// <summary>
+    /// 首次显示时的屏幕横坐标（设备无关像素，虚拟桌面坐标）。与 <see cref="Top"/> 一起指定。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>优先级</b>：显式 <see cref="Left"/> + <see cref="Top"/> &gt; <see cref="Center"/> &gt; 系统默认位置。</para>
+    ///
+    /// <para><b>必须成对</b>：只指定其中一个时视为未指定，回退为 <see cref="Center"/> 的逻辑
+    /// （单个坐标不成位置）。<c>NaN</c> 与无穷大同理，按未指定处理。</para>
+    ///
+    /// <para><b>不做工作区裁剪</b>：坐标按原值使用，不会被移动或缩放到显示器工作区内，
+    /// 也不会被修正为可见区域。合法性由调用方负责——传入屏幕外的坐标，
+    /// 窗口就在屏幕外（多显示器布局中这是有意义的用法）。</para>
+    ///
+    /// <para><b>在显示之前生效</b>：该坐标在窗口创建/显示之前应用，因此窗口<b>首次出现即在目标坐标</b>，
+    /// 不会出现"先出现在别处、再跳到目标位置"。这也是它必须在创建时传入、
+    /// 而不能在 <see cref="WebViewShell.OpenAsync"/> 返回后再设 <c>window.Left</c> 的原因：
+    /// 后者返回时窗口已在屏幕上，改动必然被用户看见。</para>
+    ///
+    /// <para><b>只在首次显示时生效</b>：<see cref="WebViewWindow.ApplyOptions"/> 不会重新应用位置，
+    /// 以免在窗口可见时产生跳动。</para>
+    ///
+    /// <para>为 <c>null</c>（默认）时按 <see cref="Center"/> 决定，行为与未提供本属性完全一致。</para>
+    /// </remarks>
+    public double? Left { get; init; }
+
+    /// <summary>
+    /// 首次显示时的屏幕纵坐标（设备无关像素，虚拟桌面坐标）。与 <see cref="Left"/> 一起指定。
+    /// </summary>
+    /// <remarks>取值语义、优先级与"必须成对"的约束同 <see cref="Left"/>。</remarks>
+    public double? Top { get; init; }
 
     /// <summary>首次显示完成后是否激活窗口。</summary>
     public bool Focus { get; init; } = true;

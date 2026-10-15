@@ -93,6 +93,11 @@ public partial class MainWindow : ChromeWindow
 
         try
         {
+            // 层叠偏移：用 Left/Top 在【创建时】指定位置，窗口首次出现即在目标坐标，
+            // 不会出现"先出现在别处、再跳到目标位置"的跳动。
+            // 显示后再给 window.Left/Top 赋值做不到这一点——那时窗口已经在屏幕上了。
+            var (left, top) = NextCascadePosition(1180, 780);
+
             await _shell.OpenAsync(new WebViewWindowOptions
             {
                 Url = url,
@@ -101,6 +106,8 @@ public partial class MainWindow : ChromeWindow
                 Height = 780,
                 MinWidth = 480,
                 MinHeight = 320,
+                Left = left,
+                Top = top,
                 Topmost = TopmostBox.IsChecked == true,
                 Resizable = ResizableBox.IsChecked == true,
                 TitleBarStyle = style,
@@ -130,6 +137,27 @@ public partial class MainWindow : ChromeWindow
         {
             StatusText.Text = $"打开失败：{exception.Message}";
         }
+    }
+
+    /// <summary>
+    /// 计算下一个层叠位置：每次打开都向右下偏移，并与主窗口（所有者）的左上角对齐。
+    /// </summary>
+    /// <param name="width">新窗口宽度，用于把窗口约束回工作区内。</param>
+    /// <param name="height">新窗口高度，用于把窗口约束回工作区内。</param>
+    /// <remarks>
+    /// <para>示例刻意把坐标<b>算好再传入</b>，而不是打开后再移动窗口：后者会让用户看到跳动。</para>
+    /// <para><c>Left</c>/<c>Top</c> 本身不做工作区裁剪（库只管按原值使用），
+    /// 因此这里自行把坐标收进工作区，避免窗口跑到屏幕外。</para>
+    /// </remarks>
+    private (double Left, double Top) NextCascadePosition(double width, double height)
+    {
+        const double Step = 28;
+        var workArea = SystemParameters.WorkArea;
+        // 以主窗口为基准，四次一循环，避免无限偏出屏幕。
+        var step = _opened % 4 * Step;
+        var left = Math.Min(Left + step, workArea.Right - width);
+        var top = Math.Min(Top + step, workArea.Bottom - height);
+        return (Math.Max(workArea.Left, left), Math.Max(workArea.Top, top));
     }
 
     private async void OnOpenLocalClick(object sender, RoutedEventArgs e)

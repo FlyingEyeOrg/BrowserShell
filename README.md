@@ -60,6 +60,30 @@ await window.ReloadAsync();
 await window.CloseAsync();
 ```
 
+### 窗口定位
+
+`Left` / `Top`（设备无关像素，虚拟桌面坐标）在**创建时**确定窗口首次出现的位置：
+
+```csharp
+var window = await shell.OpenAsync(new WebViewWindowOptions
+{
+    Url = new Uri("https://www.example.com/index.html"),
+    Left = 588,
+    Top = 237,          // 首次出现即在 (588, 237)
+});
+```
+
+优先级：**显式 `Left` + `Top` > `Center` > 系统默认**。
+
+- 两个坐标**必须成对**给出；只给一个（或给 `NaN`/无穷大）视为未指定，回退到 `Center`
+- 指定了显式坐标时 `Center` 被忽略，且**不做工作区裁剪**——坐标按原值使用，由调用方负责合法性
+  （多显示器负坐标因此可用）
+- 两个属性默认 `null`，行为与未提供时完全一致
+
+> **为什么必须在创建时传**：`OpenAsync` 是"创建 + 首次导航 + 显示"一体，返回时窗口已经在屏幕上。
+> 在它返回后再设 `window.Left` / `window.Top`，用户会先看到窗口出现在一处、再跳到目标位置
+> （实测层叠偏移场景位移可达 dx=510 dy=159）。`Left` / `Top` 在显示之前应用，因此没有跳动。
+
 ### 关闭裁决
 
 窗口默认直接关闭。需要业务裁决时提供 `ClosingAsync`，返回 `false` 即拒绝本次关闭：
@@ -139,8 +163,8 @@ BrowserShell.WebView.Wpf ──> WindowChromeKit.Wpf + Microsoft.Web.WebView2
 **不需要配置永久的 `NUGET_API_KEY` secret**。推送 `v` 开头的 SemVer 标签即可发布：
 
 ```powershell
-git tag v2.0.1
-git push origin v2.0.1
+git tag v2.1.0
+git push origin v2.1.0
 ```
 
 也可在 Actions 页面手动运行该工作流，并可填写 `package_version` 覆盖版本号
@@ -149,7 +173,8 @@ git push origin v2.0.1
 
 ## 状态
 
-迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf 2.0.0`。
+迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf 2.0.0`；
+当前版本 **2.1.0**（新增 `WebViewWindowOptions.Left` / `Top`，向后兼容）。
 
 消费方集成层（原 `SoftwareHub.Service.SDK.Hosting/Desktop`）不在本仓库内：它是 SoftwareHub 对 BrowserShell 的适配层，需另行接入。
 

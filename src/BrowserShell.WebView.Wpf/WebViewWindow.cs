@@ -3,7 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
@@ -206,12 +205,11 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         var cancelled = false;
         try
         {
-            // 先创建 HWND 并挂接原生边框，再创建 controller；顺序错误会让自绘标题栏
-            // 落在 DWM 尚未接管客户区的时候。
-            _ = new WindowInteropHelper(this).EnsureHandle();
-            Show();
-            if (_options.Center) WindowPlacementService.CenterOnTargetMonitor(this);
-            else WindowPlacementService.ConstrainToWorkArea(this);
+            // 位置必须在【显示之前】确定，否则用户会看到"先出现在别处、再跳到目标位置"。
+            // 该方法内部即为：落位 → EnsureHandle() → Show()；先有 HWND 并挂接原生边框，
+            // 才能创建 WebView2 controller（顺序错误会让自绘标题栏落在 DWM 尚未接管客户区时）。
+            _ = WebViewWindowPlacement.PlaceAndShow(this, _options);
+
             UpdateLayout();
             await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Loaded, token);
             await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Render, token);

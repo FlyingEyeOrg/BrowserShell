@@ -26,6 +26,29 @@ var window = await shell.OpenAsync(new WebViewWindowOptions
 
 标题栏默认使用 `ChromeTitleBarStyle.Chrome`（含 WPF 版自带配色），无需显式指定。
 
+## 窗口定位
+
+`Left` / `Top` 在**创建时**指定窗口首次出现的位置（设备无关像素，虚拟桌面坐标）：
+
+```csharp
+var window = await shell.OpenAsync(new WebViewWindowOptions
+{
+    Url = new Uri("https://www.example.com/index.html"),
+    Left = 588,
+    Top = 237,          // 首次出现即在 (588, 237)
+});
+```
+
+优先级：**显式 `Left` + `Top` > `Center` > 系统默认**。
+
+- 两个坐标**必须成对**给出；只给一个（或给 `NaN`/无穷大）视为未指定，回退到 `Center`
+- 指定显式坐标时 `Center` 被忽略，且**不做工作区裁剪**——坐标按原值使用，合法性由调用方负责
+- 默认为 `null`，行为与未提供时完全一致
+
+> `OpenAsync` 返回时窗口已经在屏幕上（它是"创建 + 首次导航 + 显示"一体）。
+> 在它返回后再设 `window.Left` / `window.Top` 会让用户看到窗口先出现在一处、再跳到目标位置。
+> 这两个属性在显示之前应用，因此没有跳动。
+
 ## 主要类型
 
 | 类型 | 说明 |

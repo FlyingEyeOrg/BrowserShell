@@ -76,7 +76,7 @@ R1/R2 的初始化并发由 `WebView2InitializationCoordinator`（内部）串�
 | 业务登录 / OAuth / Cookie / 权限模型 | 宿主或页面自身 |
 | 页面内 UI（对话框、通知、进度条） | 宿主或页面自身 |
 | 进程间协议、远程会话、认证 | 不在本库 |
-| 多显示器布局策略（除"居中 / 约束到工作区"外） | 宿主 |
+| 多显示器布局策略（除"居中 / 约束到工作区 / 显式坐标"外） | 宿主 |
 | DI 容器接入 | 宿主 |
 | **对继承自 `ChromeWindow` 的窗口操作的再包装** | **宿主直接用继承来的 API** |
 
@@ -200,6 +200,8 @@ public sealed class WebViewWindowOptions
     public double MinHeight { get; init; }
     public bool Topmost { get; init; }
     public bool Center { get; init; } = true;
+    public double? Left { get; init; }                        // 2.1.0 新增
+    public double? Top { get; init; }                         // 2.1.0 新增
     public bool Focus { get; init; } = true;
     public bool ShowInTaskbar { get; init; } = true;
     public bool Resizable { get; init; } = true;
@@ -242,6 +244,29 @@ public sealed class WebViewWindowOptions
 
 > **建议用法**：`BitmapImage` 需设 `BitmapCacheOption.OnLoad` 并 `Freeze()`，
 > 否则对象持有文件句柄，图标文件在窗口存活期间无法删除或替换（已实测确认）。
+
+**`Left` / `Top` 是 2.1.0 新增的第三个配置项**，用于在**创建时**确定窗口首次出现的位置：
+
+| 项 | 说明 |
+|---|---|
+| 单位 | 设备无关像素（DIP），虚拟桌面坐标 |
+| 优先级 | ① 显式 `Left` + `Top` → ② `Center` → ③ 系统默认位置 |
+| 必须成对 | 只给一个视为未指定，回退到 `Center`。`NaN` / `±∞` 同理按未指定处理 |
+| 指定时 `Center` | 被忽略 |
+| 工作区裁剪 | **不做**。坐标按原值使用，合法性由调用方负责（多显示器负坐标因此可用） |
+| 为 null 时 | 按 `Center` 决定，行为与未提供本属性完全一致（向后兼容） |
+| 为何放进 Options | 位置必须在 `Show()` 之前确定。`OpenAsync` 返回时窗口已在屏幕上，之后再改 `window.Left` / `window.Top` 必然被用户看见（实测 dx=510 dy=159 的跳动） |
+| 后续更新 | `ApplyOptions` **不**重新应用位置，以免窗口可见时跳动 |
+
+**`WindowStartupLocation` 必须显式赋值**：WPF 默认即 `Manual`，看似无需设置；但 `Manual`
+在 `Left`/`Top` 未赋值时会落到系统层叠位（实测每步约 52px 偏移，长期停在左上角附近），
+这正是"窗口先出现在角落"的来源。实现中三条路径都显式写清了该属性
+（`Manual` + 显式坐标 / `CenterScreen` 语义 / `Manual` + 工作区约束）。
+
+> **实现说明**：定位逻辑放在 `WebViewWindowPlacement`（`internal`）中，
+> 返回 `InitialPlacement`，其中 `FirstVisible` 是窗口<b>首次变为可见那一刻</b>的坐标。
+> 该观察点使"显示后又被移动"可被测试捕获——只断言最终位置是测不出来的
+> （已用反向对照验证：把落位改到 `Show()` 之后，相关用例即失败）。
 
 ### 3.4 `WebViewWindowClosingContext`
 
@@ -411,8 +436,10 @@ public sealed class WebViewWindowClosingContext
 宿主  shell.OpenAsync(options, id)
         ├─ [UI 线程] 校验未释放 → 校验 id → 查重 → 构造窗口 → 注册（Add）
         └─ window.InitializeAndShowAsync(token)
-              ├─ EnsureHandle()        必须先有 HWND，再创建 controller
-              ├─ Show() + 居中 / 约束到工作区
+              ├─ WebViewWindowPlacement.PlaceAndShow()
+              │     ├─ 按 Left/Top 落位（否则留给 Center 分支）
+              │     ├─ EnsureHandle()    必须先有 HWND，再创建 controller
+              │     └─ Show() + 居中 / 约束到工作区
               ├─ 等待 Loaded / Render 排空
               └─ InitializeWebViewAsync(token)
                     ├─ [串行] EnsureCoreWebView2Async
@@ -425,6 +452,11 @@ public sealed class WebViewWindowClosingContext
 
 **关键约束**：`EnsureHandle()` 必须在创建 WebView2 controller **之前**，否则自绘标题栏会
 落在 DWM 尚未接管客户区的时间点，出现绘制错位。
+
+**位置约束**：`Left` / `Top`（以及派生的居中/约束）必须在 `Show()` **之前**应用。
+`OpenAsync` 是"创建 + 首次导航 + 显示"一体，返回时窗口已在屏幕上；若改为返回后再设
+`window.Left` / `window.Top`，用户会看到窗口先出现在一处、再跳到目标位置
+（实测层叠偏移场景位移 dx=510 dy=159）。因此位置只能在创建时传入。
 
 **失败隔离**：窗口显示与 WebView2 初始化是两段独立兜底。窗口先出来；WebView 失败时保留
 窗口并显示原因，避免"一闪即消"。
