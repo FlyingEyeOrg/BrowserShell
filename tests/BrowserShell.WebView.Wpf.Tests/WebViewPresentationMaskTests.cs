@@ -26,9 +26,24 @@ public sealed class WebViewPresentationMaskTests
     }
 
     /// <summary>
+    /// 揭罩的正常路径必须挂在 <c>DOMContentLoaded</c>（文档解析完成）上，而不是等
+    /// 宿主随 <c>body.onload</c> 触发的揭罩指令：页面上任何一个悬挂的 iframe/子资源
+    /// 都会让 onload 迟迟不来，遮罩就会多盖几十秒甚至永久盖住（2.1.1 实测 30 秒）。
+    /// </summary>
+    [Fact]
+    public void InitializationScript_RevealsOnDomContentLoaded()
+    {
+        var script = WebViewPresentationMask.CreateInitializationScript(Colors.White);
+
+        Assert.Contains("addEventListener('DOMContentLoaded'", script, StringComparison.Ordinal);
+        Assert.Contains("revealWhenParsed", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// 遮罩必须有自动揭开兜底：页面 <c>body.onload</c> 因 iframe/子资源悬挂而不触发时，
     /// WebView2 的 <c>NavigationCompleted</c> 不会到来，宿主不会发来揭罩指令——
-    /// 没有兜底遮罩就永久卡死（2.1.0 实测缺陷）。
+    /// 没有兜底遮罩就永久卡死（2.1.0 实测缺陷）。DOMContentLoaded 揭罩是正常路径，
+    /// 此定时器仅覆盖"注入脚本异常、宿主从未参与"等边角。
     /// </summary>
     [Fact]
     public void InitializationScript_AutoRevealsMaskAfterTimeout()

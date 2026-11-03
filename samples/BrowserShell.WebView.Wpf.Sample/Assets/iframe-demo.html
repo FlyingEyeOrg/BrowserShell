@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>iframe 加载示例</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 40px 32px;
+      font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      background: #1b1b1f; color: #e4e4e7;
+    }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 6px; }
+    p.lead { color: #a1a1aa; margin: 0 0 24px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; }
+    .card { border: 1px solid #3f3f46; border-radius: 8px; overflow: hidden; background: #18181b; }
+    .card h2 { font-size: 13px; margin: 0; padding: 10px 14px; font-weight: 600;
+               color: #8b8b93; border-bottom: 1px solid #27272a; }
+    .card iframe { display: block; width: 100%; height: 220px; border: 0; background: #fff; }
+    .card.hang iframe { background: #1b1b1f; }
+    .note { max-width: 1100px; margin-top: 20px; padding: 12px 16px;
+            border: 1px solid #bb8009; border-radius: 8px; background: #2a2503; color: #f5d90a; }
+    .ok { color: #7fb069; }
+  </style>
+</head>
+<body>
+  <h1>iframe 加载示例</h1>
+  <p class="lead">左：正常 iframe，随 <code>body.onload</code> 一起完成，遮罩正常揭开。右：故意悬挂的 iframe ——
+    <code>onload</code> 永不触发，用于复现 2.1.0 的「永久正在加载…」并验证 2.1.1 的 30 秒自动揭开。</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>正常 iframe（同目录 child.html）</h2>
+      <iframe src="child.html"></iframe>
+    </div>
+    <div class="card hang">
+      <h2>悬挂 iframe（响应永不结束，由示例自带的本地服务挂住）</h2>
+      <iframe src="http://127.0.0.1:8791/hang"></iframe>
+    </div>
+  </div>
+
+  <div class="note">
+    预期行为：<span class="ok">左侧 iframe 正常显示内容</span>；右侧一直转圈属正常（该请求被服务端故意挂住）。
+    外壳遮罩在 2.1.1 上最迟 30 秒自动揭开；在 2.1.0 上整个窗口会永久停在「正在加载…」——这正是线上问题的最小复现。
+  </div>
+</body>
+</html>

@@ -98,6 +98,25 @@ internal static class WebViewPresentationMask
           // 从未发来揭罩指令，遮罩也会在超时后自动揭开。
           scheduleAutoReveal();
 
+          // 揭罩的正常路径：文档解析完成（DOMContentLoaded）即揭。
+          // 此时页面骨架与首屏内容已可交互，唯一还在加载的是 iframe、图片等子资源；
+          // 若等它们全部完成（body.onload，即宿主 NavigationCompleted 的时机），
+          // 任何一个悬挂的 iframe 都会让遮罩多盖几十秒甚至永久盖住（2.1.1 前 30 秒兜底
+          // 之前是无限期）。
+          // 本脚本在页面脚本之前执行，readyState 此时必为 'loading'，事件分支只是防御。
+          // 宿主随后的揭罩指令（带更大 generation）与本揭示互不冲突：都只是把 visible 置 false。
+          const revealWhenParsed = () => {
+            if (!visible) return;
+            visible = false;
+            cancelAutoReveal();
+            ensureMask();
+          };
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', revealWhenParsed, { once: true });
+          } else {
+            revealWhenParsed();
+          }
+
           const setVisibility = (nextVisible, nextGeneration) => {
             const requestedGeneration = Number(nextGeneration) || 0;
             if (requestedGeneration < generation) return ensureMask() !== null;

@@ -134,6 +134,11 @@
                     Padding="18,7"
                     Click="OnOpenLocalClick"
                     Content="打开本地示例页" />
+            <Button x:Name="IframeButton"
+                    Margin="10,0,0,0"
+                    Padding="18,7"
+                    Click="OnOpenIframeClick"
+                    Content="打开 iframe 示例" />
             <Button x:Name="CloseAllButton"
                     Margin="10,0,0,0"
                     Padding="18,7"

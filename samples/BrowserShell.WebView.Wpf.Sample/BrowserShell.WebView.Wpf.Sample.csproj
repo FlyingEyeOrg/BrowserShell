@@ -17,6 +17,8 @@
   <ItemGroup>
     <!-- 本地示例页：随示例一起复制到输出目录，便于离线运行。 -->
     <None Update="Assets\demo.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\iframe-demo.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\child.html" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

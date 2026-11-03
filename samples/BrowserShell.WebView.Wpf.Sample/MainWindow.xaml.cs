@@ -206,6 +206,56 @@ public partial class MainWindow : ChromeWindow
         }
     }
 
+    /// <summary>
+    /// 打开 iframe 示例：左为正常 iframe，右为「响应永不结束」的悬挂 iframe。
+    /// </summary>
+    /// <remarks>
+    /// <para>悬挂 iframe 会让宿主页的 <c>body.onload</c> 永不触发，从而复现 2.1.0 的
+    /// 「窗口永久停在正在加载…」；2.1.1 起遮罩最迟 30 秒自动揭开。</para>
+    /// </remarks>
+    private async void OnOpenIframeClick(object sender, RoutedEventArgs e)
+    {
+        if (_shell is null)
+        {
+            StatusText.Text = "WebView2 环境尚未就绪。";
+            return;
+        }
+
+        // 悬挂 iframe 需要一个"永不结束响应"的服务端：file:// 做不到，
+        // 因此示例自带一个本地 HTTP 服务，把 /hang 的响应故意挂住不写完。
+        HangServer.EnsureStarted();
+
+        var page = Path.Combine(AppContext.BaseDirectory, "Assets", "iframe-demo.html");
+        if (!File.Exists(page))
+        {
+            StatusText.Text = $"找不到本地示例页：{page}";
+            return;
+        }
+
+        try
+        {
+            var window = await _shell.OpenAsync(new WebViewWindowOptions
+            {
+                Url = new Uri(page),
+                Title = "iframe 加载示例（含悬挂 iframe）",
+                Width = 1180,
+                Height = 720,
+                MinWidth = 620,
+                MinHeight = 420,
+                BackgroundColor = System.Windows.Media.Color.FromRgb(0x1B, 0x1B, 0x1F),
+            });
+
+            _opened++;
+            StatusText.Text = window.LastNavigationError is { } error
+                ? $"已打开 iframe 示例，但首次导航有问题：{error}"
+                : $"已打开 iframe 示例 {window.Id[..8]}（30 秒后遮罩自动揭开即兜底生效）。";
+        }
+        catch (Exception exception)
+        {
+            StatusText.Text = $"打开失败：{exception.Message}";
+        }
+    }
+
     private async void OnCloseAllClick(object sender, RoutedEventArgs e)
     {
         if (_shell is null)
