@@ -34,6 +34,24 @@ internal static class WebViewPresentationMask
           let visible = true;
           let generation = 0;
 
+          // 页面 body.onload 迟迟不触发时（例如某个 iframe 或子资源悬挂、连接未正常终止），
+          // WebView2 的 NavigationCompleted 不会到来，宿主也就不会发来揭罩指令——
+          // 遮罩会永久盖住页面。此定时器是兜底：遮罩显示期间最多等 30 秒（与宿主
+          // 首次导航超时一致）就自动揭开，宁可闪现半成品页面也不永久卡死。
+          const AUTO_REVEAL_MS = 30000;
+          let autoRevealToken = 0;
+          const cancelAutoReveal = () => {
+            if (autoRevealToken) { clearTimeout(autoRevealToken); autoRevealToken = 0; }
+          };
+          const scheduleAutoReveal = () => {
+            cancelAutoReveal();
+            autoRevealToken = setTimeout(() => {
+              autoRevealToken = 0;
+              visible = false;
+              ensureMask();
+            }, AUTO_REVEAL_MS);
+          };
+
           const ensureMask = () => {
             const root = document.documentElement;
             if (!root) return null;
@@ -76,12 +94,17 @@ internal static class WebViewPresentationMask
               if (ensureMask()) observer.disconnect();
             }).observe(document, { childList: true, subtree: true });
           }
+          // 首次建立遮罩即开始计时：即便宿主侧因 WebView2 初始化失败等原因
+          // 从未发来揭罩指令，遮罩也会在超时后自动揭开。
+          scheduleAutoReveal();
 
           const setVisibility = (nextVisible, nextGeneration) => {
             const requestedGeneration = Number(nextGeneration) || 0;
             if (requestedGeneration < generation) return ensureMask() !== null;
             generation = requestedGeneration;
             visible = nextVisible === true;
+            // 揭罩即取消兜底定时器；重新盖罩（新一轮导航）则重新计时。
+            if (visible) scheduleAutoReveal(); else cancelAutoReveal();
             const mask = ensureMask();
             return mask !== null;
           };

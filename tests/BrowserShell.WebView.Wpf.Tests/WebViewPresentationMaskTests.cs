@@ -26,6 +26,34 @@ public sealed class WebViewPresentationMaskTests
     }
 
     /// <summary>
+    /// 遮罩必须有自动揭开兜底：页面 <c>body.onload</c> 因 iframe/子资源悬挂而不触发时，
+    /// WebView2 的 <c>NavigationCompleted</c> 不会到来，宿主不会发来揭罩指令——
+    /// 没有兜底遮罩就永久卡死（2.1.0 实测缺陷）。
+    /// </summary>
+    [Fact]
+    public void InitializationScript_AutoRevealsMaskAfterTimeout()
+    {
+        var script = WebViewPresentationMask.CreateInitializationScript(Colors.White);
+
+        Assert.Contains("scheduleAutoReveal", script, StringComparison.Ordinal);
+        Assert.Contains("clearTimeout", script, StringComparison.Ordinal);
+        Assert.Contains("AUTO_REVEAL_MS = 30000", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>兜底定时器必须在遮罩建立时立即启动，而不是等宿主发指令——
+    /// 否则 WebView2 初始化失败等"宿主从未发指令"的场景依然永久卡死。</summary>
+    [Fact]
+    public void InitializationScript_StartsAutoRevealImmediately()
+    {
+        var script = WebViewPresentationMask.CreateInitializationScript(Colors.White);
+
+        // ensureMask() 首次调用之后必须紧跟着 scheduleAutoReveal() 启动兜底。
+        var firstEnsure = script.IndexOf("ensureMask();", StringComparison.Ordinal);
+        var scheduler = script.IndexOf("scheduleAutoReveal();", StringComparison.Ordinal);
+        Assert.True(firstEnsure >= 0 && scheduler > firstEnsure, "遮罩建立后必须立即启动自动揭开。");
+    }
+
+    /// <summary>
     /// 遮罩底色必须取自 <c>BackgroundColor</c>：写死白色正是深色页面"白闪"的成因（设计文档 6.1）。
     /// </summary>
     [Fact]
