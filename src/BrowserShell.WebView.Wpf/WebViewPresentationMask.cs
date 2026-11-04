@@ -17,6 +17,11 @@ internal static class WebViewPresentationMask
     /// <remarks>
     /// <para>脚本在 <c>AddScriptToExecuteOnDocumentCreatedAsync</c> 中注入，于页面脚本之前执行，
     /// 因此遮罩在文档创建后立即建立，覆盖此后直到 <c>NavigationCompleted</c> 的整段加载期。</para>
+    /// <para><b>只作用于顶层文档</b>：该 API 的注入范围是「顶层文档与<b>所有子 frame</b>」
+    /// （官方文档原文：<i>apply to all future top level document and child frame navigations</i>）。
+    /// 若不在子 frame 里退让，每个 iframe 内都会出现一个自己的遮罩——它收不到宿主的揭罩消息
+    /// （消息只到主文档的 <c>chrome.webview</c>），于是<b>永久</b>显示「正在加载…」。
+    /// 这正是「页面正常、但页面内 iframe 一直正在加载」的成因。</para>
     /// <para>遮罩挂在<b>闭合的 shadow root</b> 内：宿主页面的 CSS 无法选中或覆盖它，
     /// 页面自身的样式重置也不会影响遮罩外观。</para>
     /// <para>前景色由底色亮度推导（见 <see cref="PickForeground"/>），
@@ -30,6 +35,15 @@ internal static class WebViewPresentationMask
         var foreground = ToCss(PickForeground(backgroundColor));
         return $$"""
         (() => {
+          // 本脚本会被 WebView2 注入到【顶层文档与每一个子 frame】。遮罩只属于顶层窗口：
+          // 在子 frame 里立即退让，否则每个 iframe 都会出现一个永远不消失的「正在加载…」
+          // （子 frame 收不到宿主的揭罩消息，消息只发往主文档）。
+          // 跨源 iframe 访问 window.top 会抛 SecurityError，因此必须吞掉异常并视为子 frame
+          // ——宁可放过一个跨源子 frame，也不能让顶层文档因异常而建不出遮罩。
+          let isTopLevel = false;
+          try { isTopLevel = window.top === window; } catch { isTopLevel = false; }
+          if (!isTopLevel) return;
+
           const hostId = '__browserShellPresentationMask__';
           let visible = true;
           let generation = 0;

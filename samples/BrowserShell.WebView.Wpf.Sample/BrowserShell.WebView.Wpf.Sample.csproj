@@ -19,6 +19,8 @@
     <None Update="Assets\demo.html" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Assets\iframe-demo.html" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Assets\child.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\onload-probe.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\frame-inject-probe.html" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

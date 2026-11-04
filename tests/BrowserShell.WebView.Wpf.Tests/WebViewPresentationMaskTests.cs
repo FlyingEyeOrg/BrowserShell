@@ -40,11 +40,31 @@ public sealed class WebViewPresentationMaskTests
     }
 
     /// <summary>
-    /// 遮罩必须有自动揭开兜底：页面 <c>body.onload</c> 因 iframe/子资源悬挂而不触发时，
-    /// WebView2 的 <c>NavigationCompleted</c> 不会到来，宿主不会发来揭罩指令——
-    /// 没有兜底遮罩就永久卡死（2.1.0 实测缺陷）。DOMContentLoaded 揭罩是正常路径，
-    /// 此定时器仅覆盖"注入脚本异常、宿主从未参与"等边角。
+    /// 遮罩脚本会被 WebView2 注入到【顶层文档与每一个子 frame】（官方文档：
+    /// <i>apply to all future top level document and child frame navigations</i>）。
+    /// 子 frame 必须在建遮罩前退让，否则每个 iframe 里都会出现一个永远不消失的
+    /// 「正在加载…」——子 frame 收不到宿主的揭罩消息（消息只发往主文档）。
+    /// 这正是"页面正常、但页面内 iframe 一直正在加载"的成因。
     /// </summary>
+    [Fact]
+    public void InitializationScript_DoesNotBuildMaskInsideChildFrames()
+    {
+        var script = WebViewPresentationMask.CreateInitializationScript(Colors.White);
+
+        // 必须在任何 DOM 操作之前判断并退出。
+        var guard = script.IndexOf("window.top", StringComparison.Ordinal);
+        var firstEnsure = script.IndexOf("ensureMask()", StringComparison.Ordinal);
+        Assert.True(guard >= 0, "子 frame 退让判断缺失。");
+        Assert.True(firstEnsure > guard, "子 frame 判断必须早于建遮罩。");
+
+        // 跨源 iframe 访问 window.top 会抛 SecurityError，必须被吞掉。
+        Assert.Contains("try { isTopLevel = window.top === window; } catch", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>遮罩必须有自动揭开兜底：页面 <c>body.onload</c> 因 iframe/子资源悬挂而不触发时，
+    /// WebView2 的 <c>NavigationCompleted</c> 不会到来，宿主不会发来揭罩指令——
+    /// 没有兜底遮罩就永久卡死（2.1.1 实测缺陷）。DOMContentLoaded 揭罩是正常路径，
+    /// 此定时器仅覆盖"注入脚本异常、宿主从未参与"等边角。</summary>
     [Fact]
     public void InitializationScript_AutoRevealsMaskAfterTimeout()
     {

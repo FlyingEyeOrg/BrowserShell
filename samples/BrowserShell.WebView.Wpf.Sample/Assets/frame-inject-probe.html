@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>iframe 内遮罩检测</title>
+  <style>
+    body { margin:0; padding:20px; font:13px/1.6 "Segoe UI",sans-serif; background:#111; color:#eee; }
+    .box { border:1px solid #333; padding:10px; margin:10px 0; border-radius:6px; }
+    .pass { color:#7fb069; } .fail { color:#e06c75; } .warn { color:#f5d90a; }
+    iframe { width:100%; height:90px; border:1px solid #444; background:#fff; }
+  </style>
+</head>
+<body>
+<h3>父页面：iframe 内遮罩检测</h3>
+<div class="box" id="verdict">检测中…</div>
+
+<div class="box">
+  <b>子 iframe（同源 child.html）</b>
+  <iframe id="f" src="child.html"></iframe>
+</div>
+
+<script>
+  const out = document.getElementById('verdict');
+  const f = document.getElementById('f');
+  f.addEventListener('load', () => {
+    setTimeout(() => {
+      try {
+        const doc = f.contentDocument;
+        const host = doc.getElementById('__browserShellPresentationMask__');
+        const rows = [];
+        rows.push(['父页面 DOM 里是否有遮罩宿主',
+          document.getElementById('__browserShellPresentationMask__') ? '有' : '无']);
+        rows.push(['子 iframe DOM 里是否有遮罩宿主', host ? '有' : '无']);
+        rows.push(['子 iframe 里 __browserShellSetPresentationMask 是否存在',
+          typeof f.contentWindow.__browserShellSetPresentationMask]);
+        rows.push(['子 iframe readyState', doc.readyState]);
+
+        const injected = !!host || typeof f.contentWindow.__browserShellSetPresentationMask === 'function';
+        out.innerHTML = '<table style="border-collapse:collapse">' +
+          rows.map(r => `<tr><td style="padding:4px 10px;border:1px solid #333">${r[0]}</td><td style="padding:4px 10px;border:1px solid #333">${r[1]}</td></tr>`).join('') +
+          '</table><p class="' + (injected ? 'fail' : 'pass') + '">' +
+          (injected
+            ? '❌ 遮罩脚本被注入到了子 iframe —— 子 iframe 里会出现一个假的「正在加载…」'
+            : '✅ 遮罩脚本只作用于顶层文档，子 iframe 干净') + '</p>';
+      } catch (e) {
+        out.textContent = '跨源，无法检测：' + e.message;
+      }
+    }, 300);
+  });
+</script>
+</body>
+</html>

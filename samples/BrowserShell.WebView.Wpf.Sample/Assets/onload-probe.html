@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>onload 时序探针</title>
+  <style>
+    body { margin:0; padding:16px; font:13px/1.5 "Segoe UI",sans-serif; background:#111; color:#eee; }
+    table { border-collapse:collapse; width:100%; max-width:900px; }
+    th,td { border:1px solid #333; padding:6px 8px; text-align:left; }
+    th { background:#1d1d20; }
+    .ok { color:#7fb069; } .wait { color:#f5d90a; } .no { color:#e06c75; }
+    iframe { width:100%; height:120px; border:1px solid #333; background:#fff; }
+  </style>
+</head>
+<body>
+<h3>onload 时序探针</h3>
+<table id="log">
+  <tr><th>事件</th><th>触发时刻（相对导航开始）</th><th>说明</th></tr>
+</table>
+<p style="color:#888">右栏 iframe 请求 <code id="hangurl"></code>，该响应由本地服务挂住不结束。</p>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:900px">
+  <div><b>正常 iframe</b><iframe id="okFrame" src="child.html"></iframe></div>
+  <div><b>悬挂 iframe</b><iframe id="hangFrame"></iframe></div>
+</div>
+
+<script>
+  const t0 = performance.now();
+  const rows = document.getElementById('log');
+  const add = (name, detail, cls) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="${cls||''}">${name}</td><td>${(performance.now()-t0).toFixed(0)} ms</td><td>${detail}</td>`;
+    rows.appendChild(tr);
+  };
+
+  // 1) DOMContentLoaded —— 文档解析完成
+  document.addEventListener('DOMContentLoaded', () => add('DOMContentLoaded', '文档解析完成，DOM 可交互', 'ok'));
+
+  // 2) 正常 iframe 的 load
+  document.getElementById('okFrame').addEventListener('load', () => add('iframe(正常).load', '该 iframe 自己加载完成', 'ok'));
+
+  // 3) 悬挂 iframe 的 load —— 预期永远不触发
+  const hang = document.getElementById('hangFrame');
+  document.getElementById('hangurl').textContent = 'http://127.0.0.1:8791/hang（示例进程需运行）';
+  hang.addEventListener('load', () => add('iframe(悬挂).load', '居然触发了', 'no'));
+  hang.addEventListener('error', () => add('iframe(悬挂).error', '触发了 error', 'no'));
+  hang.src = 'http://127.0.0.1:8791/hang';
+
+  // 4) 主文档 onload —— 预期永远不触发
+  window.addEventListener('load', () => add('window.load（主文档 onload）', '全部子资源完成', 'ok'));
+</script>
+</body>
+</html>
