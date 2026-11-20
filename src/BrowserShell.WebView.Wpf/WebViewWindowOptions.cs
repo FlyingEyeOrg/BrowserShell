@@ -64,6 +64,29 @@ public sealed class WebViewWindowOptions
     /// <summary>首次显示完成后是否激活窗口。</summary>
     public bool Focus { get; init; } = true;
 
+    /// <summary>
+    /// <see cref="WebViewShell.OpenAsync"/> 是否等待首次导航<b>完全结束</b>（<c>body.onload</c>）后才返回。
+    /// 默认 <c>false</c>：窗口显示后立即返回，导航在后台继续。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>为什么默认不等待</b>：WebView2 的 <c>NavigationCompleted</c> 以 <c>body.onload</c>
+    /// 为前提，要等<b>所有</b>子资源（iframe、图片、脚本）结束。页面里只要有一个慢资源或悬挂资源，
+    /// 该事件就迟迟不来——<c>OpenAsync</c> 会被拖住数秒至 30 秒超时。实测：子资源延迟 6 秒
+    /// ⇒ <c>OpenAsync</c> 等 6.99 秒；含悬挂 iframe ⇒ 等满 30 秒。这类延迟会被误认为
+    /// "WebView2 环境初始化慢"，而环境初始化实测仅约 15 毫秒。</para>
+    ///
+    /// <para><b>不等待时的可见性</b>：窗口自 <c>Show()</c> 起就已可见；页面遮罩在
+    /// <c>DOMContentLoaded</c>（文档解析完成）时揭开，因此用户仍能正常看到页面。
+    /// 导航结果仍可从 <see cref="WebViewWindow.LastNavigationError"/> 观察（后台最长等 30 秒）。</para>
+    ///
+    /// <para><b>何时该设为 <c>true</c></b>：调用方确实需要"导航已结束"这一语义时才设
+    /// （例如紧接着要抓取完整 DOM），并需自行承担慢资源带来的等待。</para>
+    ///
+    /// <para>该属性只影响首次导航，不影响 <see cref="WebViewWindow.NavigateAsync"/> 等后续导航
+    /// （后者始终立即返回）。</para>
+    /// </remarks>
+    public bool WaitForFirstScreen { get; init; }
+
     /// <summary>是否在任务栏显示。有 Owner 的窗口通常应设为 false。</summary>
     public bool ShowInTaskbar { get; init; } = true;
 

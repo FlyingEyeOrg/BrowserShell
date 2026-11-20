@@ -300,24 +300,44 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
 
         if (targetUrl is not null)
         {
-            var initialNavigation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            // 等待首次导航的结束时机，由 options.WaitForFirstScreen 决定：
+            //
+            //  · true  —— 等 NavigationCompleted（= body.onload，全部子资源结束）。
+            //             语义明确，但页面含慢资源/悬挂 iframe 时会被拖住数秒至 30 秒。
+            //  · false —— 默认值：发起导航后不等它，OpenAsync 立即返回。
+            //             窗口自 Show() 起已可见，遮罩在 DOMContentLoaded 揭开；
+            //             导航在后台继续进行，结果仍可从 LastNavigationError 观察。
+            //
+            // 曾经固定等 NavigationCompleted，导致门户的 HTTP 开窗接口被拖住 6~40 秒，
+            // 还被误判为"WebView2 环境初始化慢"（实测环境初始化仅 15ms）。
+            var navigationSettled = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             void OnInitialNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs eventArgs)
             {
                 // 首次导航的完成回调可能对应重定向链上的任意一跳，也可能对应页面内的
                 // SPA 路由。不能用 URL 比对判断"是不是我请求的那次导航"——重定向会让
                 // 地址变化，比对失败就一直等下去。这里接受第一个到达的完成回调。
-                initialNavigation.TrySetResult(eventArgs.IsSuccess);
+                navigationSettled.TrySetResult(eventArgs.IsSuccess);
             }
 
             core.NavigationCompleted += OnInitialNavigationCompleted;
             try
             {
                 _webView.Source = targetUrl;
-                // 首次导航失败（网络不可达、DNS 失败、超时）不抛异常：窗口本身已经可用，
-                // 调用方可重试，失败原因记录在 LastNavigationError。
-                if (!await initialNavigation.Task.WaitAsync(TimeSpan.FromSeconds(30), token))
+
+                if (_options.WaitForFirstScreen)
                 {
-                    LastNavigationError = "首次导航失败。";
+                    // 首次导航失败（网络不可达、DNS 失败、超时）不抛异常：窗口本身已经可用，
+                    // 调用方可重试，失败原因记录在 LastNavigationError。
+                    if (!await navigationSettled.Task.WaitAsync(TimeSpan.FromSeconds(30), token))
+                    {
+                        LastNavigationError = "首次导航失败。";
+                    }
+                }
+                else
+                {
+                    // 不等待：导航在后台继续。仍然观察超时与失败，但不阻塞返回——
+                    // 用 fire-and-forget 更新 LastNavigationError，供调用方后续查询。
+                    _ = ObserveInitialNavigationAsync(navigationSettled.Task, token);
                 }
             }
             catch (TimeoutException)
@@ -342,6 +362,37 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// <summary>把 WebView2 初始化失败的原因显示在窗口内容区，替代加载指示。</summary>
     private void ShowInitializationFailure(Exception exception) =>
         WebViewWindowPresentation.ShowFailure(_initializationSurface, _webView, exception);
+
+    /// <summary>
+    /// 不阻塞 <c>OpenAsync</c> 时，在后台观察首次导航结果并更新 <see cref="LastNavigationError"/>。
+    /// </summary>
+    /// <remarks>
+    /// <para>等待上限与阻塞路径一致（30 秒）：页面含悬挂子资源时 <c>NavigationCompleted</c> 不会到来，
+    /// 此时记录"首次导航超时。"，让宿主能从属性上看出问题，而不会永久悬挂。</para>
+    /// <para>窗口已关闭、或导航已被取消时不写入错误——那不是失败。</para>
+    /// </remarks>
+    private async Task ObserveInitialNavigationAsync(Task<bool> navigationSettled, CancellationToken token)
+    {
+        try
+        {
+            if (!await navigationSettled.WaitAsync(TimeSpan.FromSeconds(30), token))
+            {
+                LastNavigationError = "首次导航失败。";
+            }
+        }
+        catch (TimeoutException)
+        {
+            LastNavigationError = "首次导航超时。";
+        }
+        catch (OperationCanceledException)
+        {
+            // 窗口关闭或调用方取消，不算导航失败。
+        }
+        catch (Exception)
+        {
+            // 观察失败不应影响窗口。
+        }
+    }
 
     /// <summary>
     /// 以新的设置原位更新窗口外观（标题、尺寸、最小尺寸、置顶、任务栏、可调整大小、标题栏样式与配色）。
