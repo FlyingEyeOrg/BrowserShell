@@ -118,6 +118,42 @@ public sealed class WebViewWindowEnvironmentTests
         });
     }
 
+    /// <summary>
+    /// 不同窗口必须共用同一个（默认）ProfileName——与浏览器"一个 profile 服务所有标签页"一致。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>为什么这条重要</b>：早期实现按窗口标识派生 <c>ProfileName</c>，每开一窗就多一个
+    /// <c>WV2Profile_*</c> 目录（实测每窗约 2.4 MB，且 WebView2 不回收），开窗频繁时磁盘线性增长；
+    /// 新建 profile 还会显著提高 <c>EnsureCoreWebView2Async</c> 触发 5 秒空转的概率。</para>
+    ///
+    /// <para>若有人把 ProfileName 改回按窗口生成，本测试会失败。</para>
+    /// </remarks>
+    [Fact]
+    public async Task CreateControllerOptions_SharesDefaultProfileAcrossWindows()
+    {
+        await RunOnStaAsync(async () =>
+        {
+            var environment = WebViewWindowEnvironment.Create(Dispatcher.CurrentDispatcher);
+            try
+            {
+                // CreateControllerOptions 需要已初始化的 Core。
+                await environment.InitializeAsync();
+
+                var first = environment.CreateControllerOptions("window-a");
+                var second = environment.CreateControllerOptions("window-b");
+
+                // 不指定 ProfileName 时 WebView2 使用默认 profile，所有窗口共享。
+                Assert.Equal(string.Empty, first.ProfileName);
+                Assert.Equal(string.Empty, second.ProfileName);
+                Assert.Equal(first.ProfileName, second.ProfileName);
+            }
+            finally
+            {
+                await environment.DisposeAsync();
+            }
+        });
+    }
+
     /// <summary>在独立 STA 线程上执行异步回调，避免 WPF Dispatcher 与 xUnit 线程池冲突。</summary>
     private static async Task RunOnStaAsync(Func<Task> action)
     {

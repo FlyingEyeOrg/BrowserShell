@@ -39,17 +39,20 @@ public sealed class WebViewWindowEnvironment : IAsyncDisposable
     /// <para><b>默认目录跨进程复用，而不是每次进程启动都换新目录。</b>早期实现把随机 GUID 拼进路径，
     /// 每个进程都得到一个全新的 WebView2 用户数据根目录。实测（WebView2 Runtime 157）：
     /// 全新根目录下 <c>EnsureCoreWebView2Async</c> 约有 <b>50%</b> 概率空转 <b>5.2 秒</b>
-    /// （期间 CPU 与内存完全不变，属 Runtime 内部的等待），而复用根目录、仅新建 profile 时
-    /// 稳定在 250~290 毫秒。门户每次开窗都是新进程，因此每次都有约一半概率慢 5 秒，
+    /// （期间 CPU 与内存完全不变，属 Runtime 内部的等待），而复用根目录时稳定在 250~290 毫秒。
+    /// 门户每次开窗都是新进程，因此每次都有约一半概率慢 5 秒，
     /// 且被误认为"WebView2 环境初始化慢"。</para>
     ///
-    /// <para>现在改用固定根目录 <c>%TEMP%/BrowserShell/&lt;exe 名&gt;-&lt;用户 SID 摘要&gt;</c>：
-    /// 同一应用的不同进程复用同一目录（消除 5 秒空转），不同应用之间仍相互隔离。
-    /// 窗口级隔离依旧由 <see cref="CreateControllerOptions"/> 的独立 ProfileName 保证，
-    /// Cookie 与缓存不会互相串用。</para>
+    /// <para>现在改用固定根目录 <c>%TEMP%/BrowserShell/&lt;exe 名&gt;-&lt;用户摘要&gt;</c>：
+    /// 同一应用的不同进程复用同一目录（消除 5 秒空转），不同应用之间仍相互隔离。</para>
+    ///
+    /// <para><b>磁盘占用是有界的</b>：所有窗口共用一个默认 profile（见
+    /// <see cref="CreateControllerOptions"/>），因此不会随开窗次数增长——
+    /// 与浏览器"一个 profile 服务所有标签页"的模型一致。</para>
     ///
     /// <para>目录不再随进程退出删除——复用正是收益来源。WebView2 自身会在其中维护缓存，
-    /// 磁盘占用由 Runtime 自行回收；如需完全干净的环境，调用方显式传 <paramref name="userDataFolder"/> 即可。</para>
+    /// 磁盘占用由 Runtime 按上限回收；如需完全干净的环境，调用方显式传
+    /// <paramref name="userDataFolder"/> 即可。</para>
     /// </remarks>
     public static WebViewWindowEnvironment Create(
         Dispatcher dispatcher,
@@ -136,17 +139,30 @@ public sealed class WebViewWindowEnvironment : IAsyncDisposable
     }
 
     /// <summary>
-    /// 为指定标识创建隔离的 WebView2 Profile，让不同业务窗口拥有独立的 Cookie 与缓存。
+    /// 创建 WebView2 Controller 选项：<b>所有窗口共用同一个（默认）Profile</b>。
     /// </summary>
+    /// <remarks>
+    /// <para><b>与浏览器一致</b>：Edge/Chrome 默认只有一个 <c>Default</c> profile，服务全部
+    /// 标签页与窗口；只有用户主动"添加个人资料"时才有第二个。本库同此模型——
+    /// 一个进程一个 profile，多个窗口共享 Cookie、localStorage 与缓存。</para>
+    ///
+    /// <para><b>为什么不再每窗口建 profile</b>：早期实现把窗口标识派生成
+    /// <c>ProfileName</c>，于是每开一窗就多一个 <c>WV2Profile_*</c> 目录。实测每窗约
+    /// <b>2.4 MB</b> 且 WebView2 不会自行回收，开窗频繁时会线性增长（一天百窗约 240 MB）。
+    /// 同时"新建 profile"还会显著提高 <c>EnsureCoreWebView2Async</c> 触发 5 秒空转的概率。
+    /// 共用 profile 让两者一并消失，且让多窗口的登录态自然统一。</para>
+    ///
+    /// <para><b>代价</b>：窗口之间不再隔离 Cookie。若将来确有"同进程多账号并存"的需求，
+    /// 需要显式按账号划分 profile，而不是按窗口。</para>
+    /// </remarks>
+    /// <param name="profileId">
+    /// 保留该参数以维持调用方签名；<b>不再参与 profile 选择</b>。
+    /// </param>
     public CoreWebView2ControllerOptions CreateControllerOptions(string profileId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(profileId);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(profileId)));
-        var options = Core.CreateCoreWebView2ControllerOptions();
-        // 保持 profile 路径简短，避免 WebView2 Runtime 在较长用户数据根目录下
-        // 创建 controller 时触发内部路径限制。摘要仍足以在单进程内隔离。
-        options.ProfileName = $"win-{hash[..16]}";
-        return options;
+        // 不设置 ProfileName：留空即使用 WebView2 的默认 profile，所有窗口共享。
+        return Core.CreateCoreWebView2ControllerOptions();
     }
 
     /// <summary>串行化 WebView2 Controller 初始化，避免多个可见窗口同时进入原生初始化。</summary>

@@ -24,7 +24,7 @@ namespace BrowserShell.WebView.Wpf;
 /// <see cref="WebViewShell.OpenAsync"/> 创建。这样可保证：</para>
 /// <list type="bullet">
 ///   <item><description>同一进程内共享唯一的 WebView2 环境；</description></item>
-///   <item><description><see cref="Id"/> 在管理器注册表内唯一（并因此获得独立的 Profile 隔离）；</description></item>
+///   <item><description><see cref="Id"/> 在管理器注册表内唯一；</description></item>
 ///   <item><description>WebView2 Controller 的并发初始化被串行化。</description></item>
 /// </list>
 ///
@@ -135,16 +135,15 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
     /// <see cref="WebViewShell.OpenAsync"/> 指定或自动生成（GUID 的 <c>N</c> 格式）。
     /// </summary>
     /// <remarks>
-    /// <para>该标识同时承担三项职责，因此它的唯一性不是记账问题，而是功能前提：</para>
+    /// <para>该标识承担两项职责，因此它的唯一性不是记账问题，而是功能前提：</para>
     /// <list type="number">
     ///   <item><description><b>注册表键</b>：<see cref="WebViewShell.TryGetWindow"/>、
     ///   <see cref="WebViewShell.CloseAsync"/> 与关闭时的注销都依赖它定位窗口。</description></item>
-    ///   <item><description><b>Profile 隔离种子</b>：它经 SHA-256 派生出 WebView2 的
-    ///   <c>ProfileName</c>。因此<b>相同标识会导致两个窗口共用 Cookie 与缓存</b>，隔离失效——
-    ///   这是唯一性必须被强制的根本原因。</description></item>
     ///   <item><description><b>页面可见标识</b>：注入页面的脚本会把它暴露为
     ///   <c>browserShell.window.windowId</c>，供同一页面被多个窗口承载时区分自身。</description></item>
     /// </list>
+    /// <para><b>它不参与 Cookie 隔离</b>：所有窗口共用 WebView2 的默认 profile
+    /// （与浏览器"一个 profile 服务所有标签页"一致），因此窗口之间的登录态是共享的。</para>
     /// <para>唯一性在 <see cref="WebViewShell.OpenAsync"/> 的 UI 线程回调内以
     /// 查重 + <c>Add</c> 的原子方式强制；重复即时抛 <see cref="InvalidOperationException"/>。
     /// 窗口真正关闭后该标识被释放，可再次使用。</para>
