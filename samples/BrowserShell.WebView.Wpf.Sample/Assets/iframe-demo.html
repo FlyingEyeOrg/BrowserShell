@@ -8,42 +8,87 @@
     :root { color-scheme: dark; }
     * { box-sizing: border-box; }
     body {
-      margin: 0; padding: 40px 32px;
-      font: 14px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+      margin: 0; padding: 36px 32px;
+      font: 14px/1.65 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
       background: #1b1b1f; color: #e4e4e7;
     }
-    h1 { font-size: 20px; font-weight: 600; margin: 0 0 6px; }
-    p.lead { color: #a1a1aa; margin: 0 0 24px; }
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 8px; }
+    p.lead { color: #a1a1aa; margin: 0 0 26px; max-width: 1100px; }
+    p.lead code { background: #27272a; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1100px; }
-    .card { border: 1px solid #3f3f46; border-radius: 8px; overflow: hidden; background: #18181b; }
-    .card h2 { font-size: 13px; margin: 0; padding: 10px 14px; font-weight: 600;
-               color: #8b8b93; border-bottom: 1px solid #27272a; }
-    .card iframe { display: block; width: 100%; height: 220px; border: 0; background: #fff; }
-    .card.hang iframe { background: #1b1b1f; }
-    .note { max-width: 1100px; margin-top: 20px; padding: 12px 16px;
-            border: 1px solid #bb8009; border-radius: 8px; background: #2a2503; color: #f5d90a; }
-    .ok { color: #7fb069; }
+    .card {
+      border: 1px solid #3f3f46; border-radius: 8px; overflow: hidden;
+      background: #18181b; display: flex; flex-direction: column;
+    }
+    .card h2 {
+      font-size: 13px; margin: 0; padding: 10px 14px; font-weight: 600;
+      color: #d4d4d8; border-bottom: 1px solid #27272a; background: #202024;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px;
+    }
+    .badge.ok   { background: #14532d; color: #86efac; }
+    .badge.wait { background: #4a2503; color: #fcd34d; }
+
+    /* iframe 固定高度；悬挂那侧的说明盖在其上（它自己的文档永远加载不完，
+       无法在内部渲染提示）。 */
+    .frame-wrap { position: relative; height: 240px; }
+    .frame-wrap iframe { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+    .frame-wrap .hint {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: center; gap: 8px; padding: 0 22px;
+      background: rgba(24, 24, 27, .78); color: #e4e4e7;
+      font-size: 12px; line-height: 1.7; pointer-events: none;
+    }
+    .frame-wrap .hint b { color: #fcd34d; font-weight: 600; }
+    .frame-wrap .hint code { background: #3f3f46; padding: 1px 5px; border-radius: 3px; }
+
+    .note {
+      max-width: 1100px; margin-top: 20px; padding: 14px 16px;
+      border: 1px solid #3f3f46; border-radius: 8px; background: #202024;
+      color: #a1a1aa; font-size: 13px;
+    }
+    .note b { color: #e4e4e7; }
+    .ok { color: #86efac; }
   </style>
 </head>
 <body>
   <h1>iframe 加载示例</h1>
-  <p class="lead">左：正常 iframe，自己加载完成即显示内容。右：故意悬挂的 iframe（响应永不结束）——
-    它自身的 <code>load</code> 永不触发，但<b>不影响</b>主页面、遮罩与左侧 iframe。</p>
+  <p class="lead">
+    同一个页面里放两个 iframe，用来观察<b>子资源如何影响（或不影响）窗口</b>：
+    左侧正常加载；右侧的连接被服务端故意挂住，永不结束。
+  </p>
 
   <div class="grid">
     <div class="card">
-      <h2>正常 iframe（同目录 child.html）</h2>
-      <iframe src="child.html"></iframe>
+      <h2>正常 iframe <span class="badge ok">加载完成</span></h2>
+      <div class="frame-wrap">
+        <iframe src="child.html"></iframe>
+      </div>
     </div>
-    <div class="card hang">
-      <h2>悬挂 iframe（响应永不结束，由示例自带的本地服务挂住）</h2>
-      <iframe src="http://127.0.0.1:8791/hang"></iframe>
+
+    <div class="card">
+      <h2>悬挂 iframe <span class="badge wait">永不完成</span></h2>
+      <div class="frame-wrap">
+        <iframe src="http://127.0.0.1:8791/hang"></iframe>
+        <div class="hint">
+          <span><b>这一格会永远停在「加载中」——这是故意的。</b></span>
+          <span>本地服务先回 200 和半个响应体（你看到的 <code>hang</code>），
+            然后不写完、也不关连接，用来模拟真实环境里悬挂的子资源。</span>
+          <span>它只影响自己：主页面、遮罩与左侧 iframe 都不受牵连。</span>
+        </div>
+      </div>
     </div>
   </div>
 
   <div class="note">
-    预期行为：<span class="ok">左侧 iframe 正常显示内容</span>；右侧一直转圈属正常（该请求被服务端故意挂住）。
-    外壳遮罩只覆盖顶层窗口、且在文档解析完成时即揭开，因此主页面不受悬挂 iframe 影响，子 iframe 内也不会出现遮罩。
+    <b>怎么看这个示例：</b>
+    窗口应当<b>立刻</b>出现内容（不会等右侧那个悬挂请求）；
+    左侧 iframe 自己加载完就显示；
+    右侧一直停在加载中也属正常。
+    外壳遮罩只覆盖顶层窗口，并在文档解析完成时揭开，因此页面内的 iframe 既不会拖住窗口，也不会各自出现遮罩。
   </div>
 </body>
 </html>

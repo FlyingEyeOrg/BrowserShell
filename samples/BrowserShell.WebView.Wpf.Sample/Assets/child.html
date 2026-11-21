@@ -4,13 +4,29 @@
   <meta charset="utf-8" />
   <title>子页面</title>
   <style>
-    body { margin: 0; padding: 20px; font: 14px/1.6 "Segoe UI", "Microsoft YaHei", sans-serif;
-           background: #f4f4f5; color: #18181b; }
-    b { color: #2563eb; }
+    body {
+      margin: 0; padding: 24px 26px;
+      font: 14px/1.7 "Segoe UI", "Microsoft YaHei", sans-serif;
+      background: #f4f4f5; color: #18181b;
+    }
+    h2 { margin: 0 0 10px; font-size: 16px; color: #2563eb; }
+    ul { margin: 10px 0 0; padding-left: 20px; color: #3f3f46; }
+    li { margin: 4px 0; }
+    code { background: #e4e4e7; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    .tag {
+      display: inline-block; margin-top: 14px; padding: 3px 10px;
+      border-radius: 999px; background: #dcfce7; color: #166534;
+      font-size: 12px; font-weight: 600;
+    }
   </style>
 </head>
 <body>
-  <p><b>iframe 子页面加载成功。</b></p>
-  <p>本页随宿主页的 <code>body.onload</code> 一起完成加载。</p>
+  <h2>iframe 子页面加载成功</h2>
+  <ul>
+    <li>本页是<b>独立加载</b>的，只决定自己的加载状态。</li>
+    <li>它与宿主页的 <code>body.onload</code> <b>互不等待</b>。</li>
+    <li>也不受右栏那个悬挂 iframe 的影响。</li>
+  </ul>
+  <span class="tag">✅ 正常加载完成</span>
 </body>
 </html>

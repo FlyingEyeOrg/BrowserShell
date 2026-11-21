@@ -337,7 +337,13 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
                 {
                     // 不等待：导航在后台继续。仍然观察超时与失败，但不阻塞返回——
                     // 用 fire-and-forget 更新 LastNavigationError，供调用方后续查询。
-                    _ = ObserveInitialNavigationAsync(navigationSettled.Task, token);
+                    // 注意：观察者依赖下面的 NavigationCompleted 订阅，故订阅的退订
+                    // 必须延后到观察结束（见 ObserveInitialNavigationAsync 内部）。
+                    _ = ObserveInitialNavigationAsync(
+                        navigationSettled.Task,
+                        OnInitialNavigationCompleted,
+                        core,
+                        token);
                 }
             }
             catch (TimeoutException)
@@ -346,11 +352,19 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
             }
             finally
             {
-                core.NavigationCompleted -= OnInitialNavigationCompleted;
+                // 只有「等待」路径在此退订；不等待路径由观察者负责退订，
+                // 否则会提前摘掉回调，让观察者永远等不到结果、误报超时。
+                if (_options.WaitForFirstScreen)
+                {
+                    core.NavigationCompleted -= OnInitialNavigationCompleted;
+                }
             }
         }
 
-        await RevealCompletedNavigationAsync(core, token);
+        // 非阻塞揭罩：投递消息即返回，不等脚本回执。
+        // 不能 await ExecuteScriptAsync——导航进行中它会被排队到导航结束，
+        // 从而把 OpenAsync 拖住数秒（实测 5.4 秒）。
+        RevealWithoutBlocking(core);
         initialPresentationCompleted = true;
         _initializationSurface.Visibility = Visibility.Collapsed;
         _webView.Visibility = Visibility.Visible;
@@ -364,14 +378,21 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         WebViewWindowPresentation.ShowFailure(_initializationSurface, _webView, exception);
 
     /// <summary>
-    /// 不阻塞 <c>OpenAsync</c> 时，在后台观察首次导航结果并更新 <see cref="LastNavigationError"/>。
+    /// 不阻塞 <c>OpenAsync</c> 时，在后台观察首次导航结果并更新 <see cref="LastNavigationError"/>，
+    /// 结束后自行退订 <c>NavigationCompleted</c>。
     /// </summary>
     /// <remarks>
     /// <para>等待上限与阻塞路径一致（30 秒）：页面含悬挂子资源时 <c>NavigationCompleted</c> 不会到来，
     /// 此时记录"首次导航超时。"，让宿主能从属性上看出问题，而不会永久悬挂。</para>
     /// <para>窗口已关闭、或导航已被取消时不写入错误——那不是失败。</para>
+    /// <para><b>退订责任在本方法</b>：<c>OpenAsync</c> 在不等待路径下不能提前退订，
+    /// 否则观察者拿不到回调，会必然误报"首次导航超时"。</para>
     /// </remarks>
-    private async Task ObserveInitialNavigationAsync(Task<bool> navigationSettled, CancellationToken token)
+    private async Task ObserveInitialNavigationAsync(
+        Task<bool> navigationSettled,
+        EventHandler<CoreWebView2NavigationCompletedEventArgs> handler,
+        CoreWebView2 core,
+        CancellationToken token)
     {
         try
         {
@@ -391,6 +412,11 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         catch (Exception)
         {
             // 观察失败不应影响窗口。
+        }
+        finally
+        {
+            // 由观察者退订：不等待路径下 OpenAsync 已提前返回，退订必须在这里做。
+            core.NavigationCompleted -= handler;
         }
     }
 
@@ -740,6 +766,35 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         catch (Exception)
         {
             // 遮罩不可用时页面仍然可见，不中断导航。
+        }
+    }
+
+    /// <summary>
+    /// 非阻塞地揭开遮罩：投递消息即返回，不等页面脚本回执。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>为什么不能用 <see cref="RevealCompletedNavigationAsync"/></b>：它内部走
+    /// <c>ExecuteScriptAsync</c>，而该调用在<b>导航进行中会被排队到导航结束</b>才求值。
+    /// 实测：页面含 6 秒慢资源时它耗时 5.4 秒，含悬挂 iframe 时同样 5.4 秒——
+    /// 即便 <see cref="WebViewWindowOptions.WaitForFirstScreen"/> 为 false，
+    /// <c>OpenAsync</c> 仍会被这一行拖住，等于修复没生效。</para>
+    ///
+    /// <para><b>本方法</b>改用 <c>PostWebMessageAsJson</c>：消息进入页面事件队列即返回，
+    /// 不依赖脚本求值时机。遮罩脚本已监听 <c>presentationMask</c> 消息并自行处理。</para>
+    ///
+    /// <para>无需回执：遮罩脚本另有 <c>DOMContentLoaded</c> 揭罩与超时兜底，
+    /// 投递失败时页面依旧可见。</para>
+    /// </remarks>
+    private void RevealWithoutBlocking(CoreWebView2 core)
+    {
+        try
+        {
+            var generation = Interlocked.Increment(ref _navigationGeneration);
+            WebViewPresentationMask.PostVisibility(core, visible: false, generation);
+        }
+        catch (Exception)
+        {
+            // 通道不可用时页面仍然可见，不中断开窗。
         }
     }
 
