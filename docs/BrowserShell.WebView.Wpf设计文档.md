@@ -1,7 +1,7 @@
 # BrowserShell.WebView.Wpf 设计文档
 
 状态：**已实现**（第三、四节描述的 3.0.0 目标 API 已落地；本文档保留设计依据与决策记录）
-当前版本：**2.4.0**
+当前版本：**3.0.0-rc.1**
 最后核对：以当前 `HEAD` 源码为准，行数与调用点均经实际检索
 
 > **阅读提示**：第三、四节的标题里保留了「3.0.0」字样，那是当时规划破坏性变更时使用的
@@ -306,9 +306,13 @@ namespace BrowserShell.WebView.Wpf;
 
 public sealed class WebViewShell : IAsyncDisposable
 {
+    // 兼容重载（保留旧签名）
     public static Task<WebViewShell> CreateAsync(Dispatcher dispatcher,
         string? browserExecutableFolder = null, string? userDataFolder = null,
         CancellationToken token = default);
+    // 推荐重载
+    public static Task<WebViewShell> CreateAsync(Dispatcher dispatcher,
+        WebViewShellOptions? options, CancellationToken token = default);
     public int WindowCount { get; }
     public IReadOnlyCollection<WebViewWindow> Windows { get; }
     public bool TryGetWindow(string id, out WebViewWindow? window);
@@ -331,10 +335,41 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
 
 public sealed class WebViewWindowOptions { /* 见 3.3 */ }
 
+public sealed class WebViewShellOptions
+{
+    public string? BrowserExecutableFolder { get; set; }
+    public string? UserDataFolder { get; set; }          // 完整路径，接管其余三项
+    public UserDataFolderLocation UserDataFolderRoot { get; set; }
+    public string ProductFolderName { get; set; }
+    public string? ApplicationFolderName { get; set; }   // null = 取 exe 文件名
+    public string ResolveUserDataFolder();
+}
+
+public enum UserDataFolderLocation
+{
+    LocalApplicationData,   // 默认（%LOCALAPPDATA%）
+    RoamingApplicationData, // %APPDATA%
+    Temp,                   // %TEMP%，仅建议测试
+    Custom,                 // 由 UserDataFolder 指定
+}
+
 public sealed class WebViewWindowClosingContext
 {
     public WebViewWindow Window { get; }
     public string Source { get; }
+}
+
+// —— 依赖注入（ASP.NET Core 风格）——
+public static class WebViewWpfServiceCollectionExtensions
+{
+    public static IServiceCollection AddBrowserShellWebView(
+        this IServiceCollection services,
+        Action<WebViewShellOptions>? configure = null);
+}
+
+public interface IWebViewShellFactory
+{
+    Task<WebViewShell> CreateAsync(CancellationToken token = default);
 }
 ```
 
@@ -839,3 +874,4 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 - [`../README.md`](../README.md) —— 仓库总览
 - [`迁移报告.md`](迁移报告.md) —— 从 `SoftwareHub.DesktopAgent` 迁入与瘦身的完整记录
 - [`../src/BrowserShell.WebView.Wpf/README.md`](../src/BrowserShell.WebView.Wpf/README.md) —— 面向使用者的快速开始
+

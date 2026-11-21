@@ -34,7 +34,30 @@ public sealed class WebViewShell : IAsyncDisposable
         CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
-        var environment = WebViewWindowEnvironment.Create(dispatcher, browserExecutableFolder, userDataFolder);
+        return await CreateAsync(dispatcher, new WebViewShellOptions
+        {
+            BrowserExecutableFolder = browserExecutableFolder,
+            UserDataFolder = userDataFolder,
+        }, token);
+    }
+
+    /// <summary>按 <see cref="WebViewShellOptions"/> 创建外壳管理器。</summary>
+    /// <param name="dispatcher">承载窗口的 WPF Dispatcher，通常是 <c>Application.Current.Dispatcher</c>。</param>
+    /// <param name="options">环境与缓存配置；为 <c>null</c> 时全部使用默认值。</param>
+    /// <param name="token">取消令牌。</param>
+    /// <remarks>
+    /// <para>默认把用户数据目录放在 <c>%LOCALAPPDATA%\BrowserShell\{应用名}</c>，
+    /// 具体规则见 <see cref="WebViewShellOptions.ResolveUserDataFolder"/>。</para>
+    /// <para>使用依赖注入时通常不直接调用本方法，而是注册后从容器解析
+    /// <see cref="WebViewShell"/>（见 <c>AddBrowserShellWebView</c>）。</para>
+    /// </remarks>
+    public static async Task<WebViewShell> CreateAsync(
+        Dispatcher dispatcher,
+        WebViewShellOptions? options,
+        CancellationToken token = default)
+    {
+        ArgumentNullException.ThrowIfNull(dispatcher);
+        var environment = WebViewWindowEnvironment.Create(dispatcher, options);
         await environment.InitializeAsync(token);
         return new WebViewShell(environment, dispatcher);
     }

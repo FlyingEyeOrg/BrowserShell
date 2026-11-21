@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using Microsoft.Extensions.DependencyInjection;
 using WindowChromeKit.Wpf;
 
 namespace BrowserShell.WebView.Wpf.Sample;
@@ -50,8 +51,10 @@ public partial class MainWindow : ChromeWindow
     {
         try
         {
-            // 整个进程只创建一个 WebView2 环境；所有窗口共享它，但各自使用隔离 Profile。
-            _shell = await WebViewShell.CreateAsync(Dispatcher);
+            // 通过 DI 工厂获取外壳：与 App.xaml.cs 里 AddBrowserShellWebView 注册的一致。
+            // 整个进程只创建一个 WebView2 环境；所有窗口共享它，并共用一个默认 profile。
+            var factory = App.Services.GetRequiredService<IWebViewShellFactory>();
+            _shell = await factory.CreateAsync();
             StatusText.Text = "WebView2 环境已就绪。";
         }
         catch (Exception exception)
@@ -273,3 +276,4 @@ public partial class MainWindow : ChromeWindow
         _opened = 0;
     }
 }
+

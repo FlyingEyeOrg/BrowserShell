@@ -60,64 +60,33 @@ public sealed class WebViewWindowEnvironment : IAsyncDisposable
         string? userDataFolder = null)
     {
         ArgumentNullException.ThrowIfNull(dispatcher);
-        var root = userDataFolder ?? GetDefaultUserDataFolder();
+        return Create(dispatcher, new WebViewShellOptions
+        {
+            BrowserExecutableFolder = browserExecutableFolder,
+            UserDataFolder = userDataFolder,
+        });
+    }
+
+    /// <summary>
+    /// 按 <see cref="WebViewShellOptions"/> 创建环境。
+    /// </summary>
+    /// <param name="dispatcher">承载窗口的 WPF Dispatcher。</param>
+    /// <param name="options">配置；为 <c>null</c> 时全部使用默认值。</param>
+    public static WebViewWindowEnvironment Create(
+        Dispatcher dispatcher,
+        WebViewShellOptions? options)
+    {
+        ArgumentNullException.ThrowIfNull(dispatcher);
+        options ??= new WebViewShellOptions();
+        var root = options.ResolveUserDataFolder();
         Directory.CreateDirectory(root);
         var environment = new WebViewWindowEnvironment(
             new WebView2InitializationCoordinator(dispatcher))
         {
-            BrowserExecutableFolder = browserExecutableFolder,
+            BrowserExecutableFolder = options.BrowserExecutableFolder,
             UserDataFolder = root,
         };
         return environment;
-    }
-
-    /// <summary>
-    /// 计算默认用户数据目录：<c>%TEMP%/BrowserShell/&lt;exe 名&gt;-&lt;用户标识摘要&gt;</c>。
-    /// </summary>
-    /// <remarks>
-    /// <para>键里包含可执行文件名与当前用户标识的摘要，因此：同一应用跨进程复用（消除 WebView2
-    /// 在全新根目录下的 5 秒空转）；不同应用、不同用户之间互不干扰。</para>
-    /// <para>不使用 PID：PID 每次启动都变，等于每次都是新目录，正是要避免的情形。</para>
-    /// </remarks>
-    private static string GetDefaultUserDataFolder()
-    {
-        var processName = "app";
-        try
-        {
-            // 取 exe 名（不含扩展名）。单文件发布或重命名后仍能区分不同应用。
-            var path = Environment.ProcessPath;
-            if (!string.IsNullOrEmpty(path))
-            {
-                processName = Path.GetFileNameWithoutExtension(path);
-            }
-        }
-        catch (Exception)
-        {
-            // 取不到就退回通用名，不影响可用性。
-        }
-
-        // 用用户标识的摘要参与键，避免多用户在同一台机器上共用缓存目录。
-        var identity = Environment.UserName;
-        var hash = Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(identity)))[..12];
-
-        var name = $"{SanitizeFolderName(processName)}-{hash}";
-        return Path.Combine(Path.GetTempPath(), "BrowserShell", name);
-    }
-
-    /// <summary>把任意字符串中的非法文件名字符替换为下划线，并限制长度。</summary>
-    private static string SanitizeFolderName(string value)
-    {
-        var invalid = Path.GetInvalidFileNameChars();
-        var builder = new StringBuilder(value.Length);
-        foreach (var ch in value)
-        {
-            builder.Append(Array.IndexOf(invalid, ch) >= 0 ? '_' : ch);
-        }
-
-        var cleaned = builder.ToString().Trim();
-        if (cleaned.Length == 0) cleaned = "app";
-        return cleaned.Length <= 40 ? cleaned : cleaned[..40];
     }
 
     internal string? BrowserExecutableFolder { get; private init; }
@@ -170,7 +139,8 @@ public sealed class WebViewWindowEnvironment : IAsyncDisposable
 
     /// <summary>
     /// 释放环境。不再删除默认用户数据目录——该目录跨进程复用，
-    /// 删掉它会让下一次启动重新经历 WebView2 的 5 秒空转（见 <see cref="Create"/>）。
+    /// 删掉它会让下一次启动重新经历 WebView2 的 5 秒空转（见
+    /// <see cref="Create(Dispatcher, WebViewShellOptions?)"/>）。
     /// </summary>
     /// <remarks>
     /// 由调用方显式传入 <c>userDataFolder</c> 时，本来就约定"不会删除调用方的目录"。

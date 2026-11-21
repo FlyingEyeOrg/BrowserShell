@@ -12,6 +12,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\BrowserShell.WebView.Wpf\BrowserShell.WebView.Wpf.csproj" />
+    <!-- 示例演示 ASP.NET Core 风格接入：库只依赖 Abstractions，具体容器由宿主决定。 -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
 
   <ItemGroup>

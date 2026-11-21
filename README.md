@@ -174,7 +174,7 @@ git push origin v2.4.0
 ## 状态
 
 迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf`，
-当前版本 **2.4.0**。
+当前版本 **3.0.0-rc.1**。
 
 | 版本 | 内容 |
 |---|---|
@@ -183,7 +183,20 @@ git push origin v2.4.0
 | 2.1.3 | 遮罩脚本不再注入子 iframe（修复页面内 iframe 永久「正在加载…」） |
 | 2.2.0 | `OpenAsync` 默认不再等待首次导航结束（`WaitForFirstScreen`） |
 | 2.3.0 | 用户数据目录跨进程复用，消除 WebView2 每次新建目录导致的 5 秒空转 |
-| 2.4.0 | 所有窗口共用默认 profile，与浏览器模型一致；磁盘占用不再随开窗增长 |
+| **3.0.0-rc.1** | **破坏性变更**，见下 |
+
+3.0.0-rc.1 的改动：
+
+- **用户数据目录迁到 `%LOCALAPPDATA%`**（原 `%TEMP%`）。原位置会被磁盘清理删除，
+  且其 ACL 允许本机其他用户写入——里面存的是 Cookie 等登录数据。
+  默认路径为 `%LOCALAPPDATA%\BrowserShell\{应用名}`，**不迁移旧缓存**。
+- **所有窗口共用默认 profile**：磁盘占用不再随开窗次数增长，与浏览器模型一致。
+- **新增 `WebViewShellOptions`**：根位置 / 产品目录 / 应用目录 / 完整路径四级配置。
+- **新增 ASP.NET Core 风格 DI**：`services.AddBrowserShellWebView(...)`，
+  提供 `WebViewShell` 单例与 `IWebViewShellFactory`。
+- `WindowChromeKit.Wpf` 升级到 2.2.0。
+- 源文件按职责分层（`Hosting` / `Environment` / `Windows` / `Presentation` / `Internal`），
+  命名空间不变，调用方无需调整 `using`。
 
 消费方集成层（原 `SoftwareHub.Service.SDK.Hosting/Desktop`）不在本仓库内：它是 SoftwareHub 对 BrowserShell 的适配层，需另行接入。
 
