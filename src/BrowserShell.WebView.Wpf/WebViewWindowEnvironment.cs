@@ -33,7 +33,7 @@ public sealed class WebViewWindowEnvironment : IAsyncDisposable
     /// 固定的 WebView2 Runtime 目录。为 null 时使用系统安装的 Evergreen Runtime。
     /// </param>
     /// <param name="userDataFolder">
-    /// 自定义用户数据目录。为 null 时使用进程级临时目录；传入的目录不会在释放时删除。
+    /// 自定义用户数据目录。为 null 时使用按应用复用的默认目录；传入的目录不会被删除。
     /// </param>
     /// <remarks>
     /// <para><b>默认目录跨进程复用，而不是每次进程启动都换新目录。</b>早期实现把随机 GUID 拼进路径，

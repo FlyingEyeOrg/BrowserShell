@@ -25,7 +25,7 @@ public sealed class WebViewShell : IAsyncDisposable
     /// <summary>创建外壳管理器，并初始化进程内唯一的 WebView2 环境。</summary>
     /// <param name="dispatcher">承载窗口的 WPF Dispatcher，通常是 <c>Application.Current.Dispatcher</c>。</param>
     /// <param name="browserExecutableFolder">固定 WebView2 Runtime 目录；为 null 时使用系统 Evergreen Runtime。</param>
-    /// <param name="userDataFolder">自定义用户数据目录；为 null 时使用进程临时目录。</param>
+    /// <param name="userDataFolder">自定义用户数据目录；为 null 时使用按应用复用的默认目录。</param>
     /// <param name="token">取消令牌。</param>
     public static async Task<WebViewShell> CreateAsync(
         Dispatcher dispatcher,

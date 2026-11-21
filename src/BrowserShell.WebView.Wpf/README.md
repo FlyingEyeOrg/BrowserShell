@@ -56,7 +56,7 @@ var window = await shell.OpenAsync(new WebViewWindowOptions
 | `WebViewShell` | 外壳管理器：创建/跟踪/关闭窗口，持有进程内唯一的 WebView2 环境 |
 | `WebViewWindow` | 单个外壳窗口，派生自 `ChromeWindow` |
 | `WebViewWindowOptions` | 窗口设置（地址、尺寸、标题栏样式、Origin 白名单、关闭裁决） |
-| `WebViewWindowEnvironment` | 底层 WebView2 环境与隔离 Profile |
+| `WebViewWindowEnvironment` | 底层 WebView2 环境与用户数据目录（所有窗口共用默认 profile） |
 
 ## 页面侧控制
 

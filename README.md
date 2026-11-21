@@ -163,8 +163,8 @@ BrowserShell.WebView.Wpf ──> WindowChromeKit.Wpf + Microsoft.Web.WebView2
 **不需要配置永久的 `NUGET_API_KEY` secret**。推送 `v` 开头的 SemVer 标签即可发布：
 
 ```powershell
-git tag v2.1.0
-git push origin v2.1.0
+git tag v2.4.0
+git push origin v2.4.0
 ```
 
 也可在 Actions 页面手动运行该工作流，并可填写 `package_version` 覆盖版本号
@@ -173,8 +173,17 @@ git push origin v2.1.0
 
 ## 状态
 
-迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf 2.0.0`；
-当前版本 **2.1.0**（新增 `WebViewWindowOptions.Left` / `Top`，向后兼容）。
+迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf`，
+当前版本 **2.4.0**。
+
+| 版本 | 内容 |
+|---|---|
+| 2.1.0 | 新增 `WebViewWindowOptions.Left` / `Top`，创建时即确定窗口位置（向后兼容） |
+| 2.1.1–2.1.2 | 修复页面含悬挂子资源时遮罩永久停留；改为在 `DOMContentLoaded` 揭罩 |
+| 2.1.3 | 遮罩脚本不再注入子 iframe（修复页面内 iframe 永久「正在加载…」） |
+| 2.2.0 | `OpenAsync` 默认不再等待首次导航结束（`WaitForFirstScreen`） |
+| 2.3.0 | 用户数据目录跨进程复用，消除 WebView2 每次新建目录导致的 5 秒空转 |
+| 2.4.0 | 所有窗口共用默认 profile，与浏览器模型一致；磁盘占用不再随开窗增长 |
 
 消费方集成层（原 `SoftwareHub.Service.SDK.Hosting/Desktop`）不在本仓库内：它是 SoftwareHub 对 BrowserShell 的适配层，需另行接入。
 

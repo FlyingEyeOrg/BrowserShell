@@ -1,9 +1,12 @@
 # BrowserShell.WebView.Wpf 设计文档
 
-状态：**设计稿**（待评审；评审通过后再开发）
-目标版本：**3.0.0**（含破坏性 API 变更）
-当前版本：2.0.0
+状态：**已实现**（第三、四节描述的 3.0.0 目标 API 已落地；本文档保留设计依据与决策记录）
+当前版本：**2.4.0**
 最后核对：以当前 `HEAD` 源码为准，行数与调用点均经实际检索
+
+> **阅读提示**：第三、四节的标题里保留了「3.0.0」字样，那是当时规划破坏性变更时使用的
+> 版本号记号；实际以 2.x 系列小步发布（见 [README 状态](../README.md#状态)）。
+> 文中出现的「3.0.0 新增」「3.0.0 目标态」应读作「已实现的当前形态」。
 
 ---
 
@@ -59,7 +62,7 @@
 | # | 职责 | 承载 |
 |---|---|---|
 | R1 | **窗口托管**：创建、按标识跟踪、查询、关闭、统一释放 | `WebViewShell` |
-| R2 | **WebView2 环境**：进程内唯一环境、Profile 隔离、用户数据目录生命周期 | `WebViewWindowEnvironment`（内部） |
+| R2 | **WebView2 环境**：进程内唯一环境、共用默认 Profile、用户数据目录生命周期 | `WebViewWindowEnvironment`（内部） |
 | R3 | **初始化时序与失败降级**：窗口先出来、失败可见、不闪退 | `WebViewWindow` |
 | R4 | **导航**：首次导航、重新加载、同源约束、新窗口处理 | `WebViewWindow` |
 | R5 | **加载呈现**：导航过程的加载指示与底色，避免白屏/白闪 | `WebViewPresentationMask` |
@@ -203,6 +206,7 @@ public sealed class WebViewWindowOptions
     public double? Left { get; init; }                        // 2.1.0 新增
     public double? Top { get; init; }                         // 2.1.0 新增
     public bool Focus { get; init; } = true;
+    public bool WaitForFirstScreen { get; init; }              // 2.2.0 新增；默认 false
     public bool ShowInTaskbar { get; init; } = true;
     public bool Resizable { get; init; } = true;
     public ChromeTitleBarStyle TitleBarStyle { get; init; } = ChromeTitleBarStyle.Chrome;
@@ -430,7 +434,7 @@ public sealed class WebViewWindowClosingContext
 
 ```
 宿主  WebViewShell.CreateAsync(dispatcher)
-        └─ WebViewWindowEnvironment.Create(...)   准备临时用户数据目录
+        └─ WebViewWindowEnvironment.Create(...)   准备【按应用复用】的用户数据目录
            └─ InitializeAsync()                    CoreWebView2Environment.CreateAsync
 
 宿主  shell.OpenAsync(options, id)
@@ -442,10 +446,12 @@ public sealed class WebViewWindowClosingContext
               │     └─ Show() + 居中 / 约束到工作区
               ├─ 等待 Loaded / Render 排空
               └─ InitializeWebViewAsync(token)
-                    ├─ [串行] EnsureCoreWebView2Async
+                    ├─ [串行] EnsureCoreWebView2Async（共用默认 profile）
                     ├─ 收紧安全设置
                     ├─ 注入遮罩脚本 + 页面桥脚本
-                    ├─ 首次导航（30s 超时；失败不抛，写入 LastNavigationError）
+                    ├─ 首次导航：默认【不等待】完成，立即返回；
+                    │            WaitForFirstScreen=true 时才等到 NavigationCompleted（30s 封顶）
+                    ├─ 非阻塞揭开遮罩（PostWebMessageAsJson，不等脚本回执）
                     └─ Focus 时 Activate()
         └─ OpenedAsync 回调
 ```
@@ -463,7 +469,13 @@ public sealed class WebViewWindowClosingContext
 
 ### 5.2 加载呈现（3.0.0 重新设计）
 
-**现状问题**：库里存在**两套加载指示**，文案相同（"正在加载…"），且底色三处硬编码白色：
+### 5.2 加载呈现（保留两套机制：A + B）
+
+> **实现状态**：本节记录的「统一为 B」方案**未落地**。当前实现仍是 A + B 并存
+> （`_webView` 初始 `Visibility.Hidden`，首次加载由 WPF 层 A 承担，之后由注入遮罩 B 承担）。
+> 决策点 D-A 仍未确认。以下保留原始分析，供后续决策使用。
+
+**当时的问题**：库里存在**两套加载指示**，文案相同（"正在加载…"），且底色曾硬编码白色：
 
 | # | 机制 | 生效时机 | 底色 |
 |---|---|---|---|
@@ -474,7 +486,7 @@ public sealed class WebViewWindowClosingContext
 WPF 元素无法覆盖它。故 A 只能在"WebView 隐藏"时使用，B 则把遮罩注入页面 DOM 内部
 （`position: fixed` + `z-index: 2147483647` + closed shadow root）以绕开该限制。
 
-**3.0.0 方案：统一为 B 一套机制 + 底色贯通**
+**3.0.0 拟议方案（未实现）：统一为 B 一套机制 + 底色贯通**
 
 前置事实（已核实，决定了改法的边界）：
 
@@ -743,7 +755,7 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 | 高 | 关闭裁决矩阵 | 三来源 × 接受/拒绝/异常/在途 |
 | 中 | 桥消息解析 | 6.3 的非法载荷用例（纯逻辑，无需真实 WebView2） |
 | 中 | `WebView2InitializationCoordinator` | 串行性与取消（纯逻辑，无需真实 WebView2） |
-| 低 | 环境与 Profile 隔离 | 需真实 WebView2 Runtime |
+| 低 | 环境与共用 Profile | 需真实 WebView2 Runtime |
 
 ---
 
@@ -811,14 +823,14 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 
 ---
 
-## 十、待确认决策点
+## 十、决策点
 
-| 编号 | 决策点 | 选项 |
+| 编号 | 决策点 | 结论 |
 |---|---|---|
-| **D-A** | 加载指示是否统一为注入遮罩一套机制 | 统一（推荐，消除重复）/ 保留 WPF 面板但改其底色 |
-| **D-B** | 桥是否校验 `eventArgs.Source` | 承载第三方页面则校验 / 仅自有页面则不校验 |
-| **D-C** | `WindowCount` / `Windows` / `TryGetWindow` 是否保留 | 保留（推荐，R1 自然组成）/ 极简则删 |
-| **D-D** | 版本号是否采用 3.0.0 | 采用（破坏性变更）/ 其它 |
+| **D-A** | 加载指示是否统一为注入遮罩一套机制 | **未决**。当前保留 A + B 两套（见 5.2） |
+| **D-B** | 桥是否校验 `eventArgs.Source` | **未决**。当前只校验 `type`，未校验来源 |
+| **D-C** | `WindowCount` / `Windows` / `TryGetWindow` 是否保留 | **已定：保留**（三者均已实现并对外公开） |
+| **D-D** | 版本号是否采用 3.0.0 | **已定：不采用**。改为 2.x 小步发布；破坏性变更（如 2.4.0 的共用 profile）以 minor 版本承载 |
 
 ---
 

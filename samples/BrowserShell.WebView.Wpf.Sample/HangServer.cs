@@ -5,8 +5,7 @@ namespace BrowserShell.WebView.Wpf.Sample;
 
 /// <summary>
 /// 示例自带的本地 HTTP 服务：提供一个「响应永不结束」的端点，用于模拟
-/// 服务端把响应挂住、浏览器侧 <c>body.onload</c> 永不触发的场景——
-/// 即 2.1.0「窗口永久停在正在加载…」的最小复现条件。
+/// 服务端把响应挂住、浏览器侧 <c>body.onload</c> 永不触发的场景。
 /// </summary>
 /// <remarks>
 /// <para><c>GET /hang</c>：立即返回 200 与响应头，然后<b>故意不写完响应体也不关闭连接</b>，

@@ -210,8 +210,9 @@ public partial class MainWindow : ChromeWindow
     /// 打开 iframe 示例：左为正常 iframe，右为「响应永不结束」的悬挂 iframe。
     /// </summary>
     /// <remarks>
-    /// <para>悬挂 iframe 会让宿主页的 <c>body.onload</c> 永不触发，从而复现 2.1.0 的
-    /// 「窗口永久停在正在加载…」；2.1.1 起遮罩最迟 30 秒自动揭开。</para>
+    /// <para>悬挂 iframe 会让宿主页的 <c>body.onload</c> 永不触发。当前实现下这不影响
+    /// 外壳：遮罩在 <c>DOMContentLoaded</c> 即揭开，<c>OpenAsync</c> 也不等首次导航结束。
+    /// 因此示例用于观察「一个永不结束的子资源不会拖住窗口」。</para>
     /// </remarks>
     private async void OnOpenIframeClick(object sender, RoutedEventArgs e)
     {
@@ -248,7 +249,7 @@ public partial class MainWindow : ChromeWindow
             _opened++;
             StatusText.Text = window.LastNavigationError is { } error
                 ? $"已打开 iframe 示例，但首次导航有问题：{error}"
-                : $"已打开 iframe 示例 {window.Id[..8]}（30 秒后遮罩自动揭开即兜底生效）。";
+                : $"已打开 iframe 示例 {window.Id[..8]}（遮罩在文档解析完成时即揭开，不等悬挂 iframe）。";
         }
         catch (Exception exception)
         {
