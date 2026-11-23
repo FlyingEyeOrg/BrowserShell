@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Web.WebView2.Core;
@@ -369,7 +370,55 @@ public sealed class WebViewWindow : ChromeWindow, IAsyncDisposable
         _webView.Visibility = Visibility.Visible;
         UpdateLayout();
         await Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.Render, token);
-        if (_options.Focus) Activate();
+        if (_options.Focus) ActivateAndFocusPage();
+    }
+
+    /// <summary>
+    /// 激活窗口，并把键盘焦点交给页面。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>为什么不能只调 <see cref="Window.Activate"/></b>：<c>Activate()</c> 只激活
+    /// <b>WPF 窗口</b>，焦点会停在窗口本身（实测 <c>Keyboard.FocusedElement == WebViewWindow</c>、
+    /// 页面 <c>document.hasFocus() == false</c>）。用户看到窗口在前台，但直接在页面里
+    /// 打字没有反应，必须先点一下页面。</para>
+    ///
+    /// <para><b>为什么要分两步</b>：WebView2 承载在原生 HWND 上，页面焦点由 WebView2 的
+    /// 内部子窗口持有。必须先把 WPF 焦点设到 <see cref="WebView2"/> 控件
+    /// （<c>Focus()</c> → 该控件的 <c>HWND</c> 获得 Win32 焦点），再由 WebView2 把焦点
+    /// 转发进页面。</para>
+    ///
+    /// <para><b>为什么要延迟一次</b>：刚 <c>Show()</c> 完时窗口可能尚未成为前台窗口，
+    /// 此时调用 <c>Focus()</c> 会被系统丢弃。因此先 <c>Activate()</c>，再用
+    /// <c>Dispatcher</c> 排到下一次输入优先级，等窗口真正成为前台后再移交焦点。</para>
+    /// </remarks>
+    private void ActivateAndFocusPage()
+    {
+        Activate();
+        if (!_options.FocusPage)
+        {
+            return;
+        }
+
+        // 排到 Input 优先级：等 Activate 生效、窗口成为前台后再移交焦点，
+        // 否则 Focus() 会被系统忽略（窗口还不是活动窗口）。
+        _ = Dispatcher.InvokeAsync(
+            () =>
+            {
+                if (IsClosed)
+                {
+                    return;
+                }
+
+                // 1) 把 WPF 键盘焦点交给 WebView2 控件本身。
+                _webView.Focus();
+                Keyboard.Focus(_webView);
+
+                // 2) 让 WebView2 把焦点转发进页面文档内容。
+                //    MoveFocus 对承载 xaml 岛屿的 WebView2 是必要的：某些版本下仅
+                //    Focus() 只移动 Win32 焦点，页面侧仍拿不到。
+                _webView.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+            },
+            DispatcherPriority.Input);
     }
 
     /// <summary>把 WebView2 初始化失败的原因显示在窗口内容区，替代加载指示。</summary>

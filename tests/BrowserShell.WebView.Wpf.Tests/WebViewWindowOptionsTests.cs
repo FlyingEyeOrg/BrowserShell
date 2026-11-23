@@ -22,6 +22,37 @@ public sealed class WebViewWindowOptionsTests
         Assert.True(new WebViewWindowOptions { WaitForFirstScreen = true }.WaitForFirstScreen);
 
     /// <summary>
+    /// 默认应把键盘焦点交给页面。
+    /// </summary>
+    /// <remarks>
+    /// <para>只调 <c>Window.Activate()</c> 时焦点停在窗口本身，页面拿不到输入：
+    /// 实测页面 <c>document.hasFocus() == false</c>、<c>activeElement == BODY</c>，
+    /// 用户必须先在页面里点一下才能打字。改为默认移交焦点后，
+    /// 测得 <c>hasFocus == true</c>、<c>activeElement == INPUT</c>。</para>
+    /// </remarks>
+    [Fact]
+    public void FocusPage_DefaultsToTrue() =>
+        Assert.True(new WebViewWindowOptions().FocusPage);
+
+    /// <summary>纯展示页可以关掉页面聚焦，此时只激活窗口。</summary>
+    [Fact]
+    public void FocusPage_CanBeDisabled() =>
+        Assert.False(new WebViewWindowOptions { FocusPage = false }.FocusPage);
+
+    /// <summary>窗口激活与页面聚焦是两个独立开关。</summary>
+    [Fact]
+    public void FocusAndFocusPage_AreIndependent()
+    {
+        var windowOnly = new WebViewWindowOptions { Focus = true, FocusPage = false };
+        Assert.True(windowOnly.Focus);
+        Assert.False(windowOnly.FocusPage);
+
+        var neither = new WebViewWindowOptions { Focus = false, FocusPage = false };
+        Assert.False(neither.Focus);
+        Assert.False(neither.FocusPage);
+    }
+
+    /// <summary>
     /// 其余默认值不受新增属性影响（向后兼容）：尺寸、居中等保持原样。
     /// </summary>
     [Fact]

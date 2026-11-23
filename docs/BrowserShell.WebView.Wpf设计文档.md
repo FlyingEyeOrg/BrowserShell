@@ -1,7 +1,7 @@
 # BrowserShell.WebView.Wpf 设计文档
 
 状态：**已实现**（第三、四节描述的 3.0.0 目标 API 已落地；本文档保留设计依据与决策记录）
-当前版本：**3.0.0-rc.1**
+当前版本：**3.0.1**
 最后核对：以当前 `HEAD` 源码为准，行数与调用点均经实际检索
 
 > **阅读提示**：第三、四节的标题里保留了「3.0.0」字样，那是当时规划破坏性变更时使用的
@@ -874,4 +874,5 @@ chrome.webview.postMessage(null);    // → "null"    → ValueKind = Null   →
 - [`../README.md`](../README.md) —— 仓库总览
 - [`迁移报告.md`](迁移报告.md) —— 从 `SoftwareHub.DesktopAgent` 迁入与瘦身的完整记录
 - [`../src/BrowserShell.WebView.Wpf/README.md`](../src/BrowserShell.WebView.Wpf/README.md) —— 面向使用者的快速开始
+
 

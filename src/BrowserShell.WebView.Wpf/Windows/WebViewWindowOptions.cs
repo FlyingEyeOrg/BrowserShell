@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Media;
 using WindowChromeKit.Wpf;
 
@@ -62,7 +63,27 @@ public sealed class WebViewWindowOptions
     public double? Top { get; init; }
 
     /// <summary>首次显示完成后是否激活窗口。</summary>
+    /// <remarks>
+    /// <para>仅决定窗口是否成为<b>活动窗口</b>；键盘焦点是否落到页面内容由
+    /// <see cref="FocusPage"/> 控制。</para>
+    /// </remarks>
     public bool Focus { get; init; } = true;
+
+    /// <summary>
+    /// 激活窗口后，是否把键盘焦点交给页面内容。默认 <c>true</c>。
+    /// </summary>
+    /// <remarks>
+    /// <para><b>为什么需要这个开关</b>：WebView2 承载在原生 HWND 上，
+    /// <see cref="Window.Activate"/> 只激活窗口，焦点会停在窗口本身——
+    /// 用户看到窗口在前台，但直接在页面里打字没有反应，必须先点一下页面。
+    /// 本库因此在激活后把焦点显式移交给页面。</para>
+    ///
+    /// <para><b>何时设为 <c>false</c></b>：纯展示页（不需要键盘输入），或宿主希望在
+    /// <see cref="OpenedAsync"/> 里先操作自己的 WPF 元素、不希望被页面抢走焦点。</para>
+    ///
+    /// <para>仅在 <see cref="Focus"/> 为 <c>true</c> 时生效。</para>
+    /// </remarks>
+    public bool FocusPage { get; init; } = true;
 
     /// <summary>
     /// <see cref="WebViewShell.OpenAsync"/> 是否等待首次导航<b>完全结束</b>（<c>body.onload</c>）后才返回。

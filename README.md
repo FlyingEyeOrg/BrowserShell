@@ -174,7 +174,7 @@ git push origin v2.4.0
 ## 状态
 
 迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf`，
-当前版本 **3.0.0-rc.1**。
+当前版本 **3.0.1**。
 
 | 版本 | 内容 |
 |---|---|
@@ -183,7 +183,8 @@ git push origin v2.4.0
 | 2.1.3 | 遮罩脚本不再注入子 iframe（修复页面内 iframe 永久「正在加载…」） |
 | 2.2.0 | `OpenAsync` 默认不再等待首次导航结束（`WaitForFirstScreen`） |
 | 2.3.0 | 用户数据目录跨进程复用，消除 WebView2 每次新建目录导致的 5 秒空转 |
-| **3.0.0-rc.1** | **破坏性变更**，见下 |
+| 3.0.0-rc.1 | **破坏性变更**：缓存迁到 `%LOCALAPPDATA%`、共用 profile、新增 Options 与 DI |
+| **3.0.1** | 打开窗口后键盘焦点直接落到页面（新增 `FocusPage`） |
 
 3.0.0-rc.1 的改动：
 
@@ -197,6 +198,12 @@ git push origin v2.4.0
 - `WindowChromeKit.Wpf` 升级到 2.2.0。
 - 源文件按职责分层（`Hosting` / `Environment` / `Windows` / `Presentation` / `Internal`），
   命名空间不变，调用方无需调整 `using`。
+
+3.0.1 的改动：
+
+- **打开窗口后键盘焦点直接落到页面**。此前只调 `Window.Activate()`，焦点停在窗口本身，
+  用户看到窗口在前台但直接打字没有反应，须先点一下页面。
+  新增 `FocusPage`（默认 `true`）与 `Focus` 分离：纯展示页或宿主想自行聚焦时可关掉。
 
 消费方集成层（原 `SoftwareHub.Service.SDK.Hosting/Desktop`）不在本仓库内：它是 SoftwareHub 对 BrowserShell 的适配层，需另行接入。
 

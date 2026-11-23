@@ -146,6 +146,31 @@ var window = await shell.OpenAsync(new WebViewWindowOptions
 > 在它返回后再设 `window.Left` / `window.Top` 会让用户看到窗口先出现在一处、再跳到目标位置。
 > 这两个属性在显示之前应用，因此没有跳动。
 
+## 焦点
+
+窗口显示后，键盘焦点会**直接交给页面**，打开即可打字，不需要先点一下页面。
+
+```csharp
+new WebViewWindowOptions
+{
+    Focus = true,       // 是否激活窗口（默认 true）
+    FocusPage = true,   // 激活后是否把键盘焦点交给页面（默认 true）
+}
+```
+
+两个开关是独立的：
+
+| 场景 | 配法 |
+|---|---|
+| 常规：打开即可输入 | 默认，无需设置 |
+| 纯展示页（不需要键盘） | `FocusPage = false` |
+| 宿主想先聚焦自己的 WPF 控件 | `FocusPage = false`，在 `OpenedAsync` 里自行处理 |
+| 不抢前台（后台开窗） | `Focus = false`（同时 `FocusPage` 不生效） |
+
+> **为什么需要这一步**：WebView2 承载在原生 HWND 上，`Window.Activate()` 只激活窗口，
+> 焦点会停在窗口本身——用户看到窗口在前台，但直接在页面里打字没有反应。
+> 本库因此在激活后显式把焦点移交给页面。
+
 ## 主要类型
 
 | 类型 | 说明 |
