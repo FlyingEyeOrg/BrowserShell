@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>3.0.2</Version>
+    <Version>3.1.0-rc.1</Version>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <AssemblyName>BrowserShell.WebView.Wpf</AssemblyName>
@@ -26,6 +26,7 @@
     <InternalsVisibleTo Include="BrowserShell.WebView.Wpf.Tests" />
   </ItemGroup>
 </Project>
+
 
 
 
