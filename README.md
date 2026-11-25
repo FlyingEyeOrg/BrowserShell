@@ -174,7 +174,7 @@ git push origin v2.4.0
 ## 状态
 
 迁移自 `SoftwareHub.DesktopAgent`（1.0.4）。已在 NuGet.org 发布 `BrowserShell.WebView.Wpf`，
-当前版本 **3.1.0-rc.1**。
+当前版本 **3.1.0-rc.2**。
 
 | 版本 | 内容 |
 |---|---|
@@ -186,7 +186,8 @@ git push origin v2.4.0
 | 3.0.0-rc.1 | **破坏性变更**：缓存迁到 `%LOCALAPPDATA%`、共用 profile、新增 Options 与 DI |
 | 3.0.1 | 打开窗口后键盘焦点直接落到页面（新增 `FocusPage`） |
 | 3.0.2 | `WindowChromeKit.Wpf` 升级到 2.3.0 |
-| **3.1.0-rc.1** | `WindowChromeKit.Wpf` 升级到 2.3.1（预发布） |
+| 3.1.0-rc.1 | `WindowChromeKit.Wpf` 升级到 2.3.1（预发布） |
+| **3.1.0-rc.2** | `WindowChromeKit.Wpf` 升级到 2.3.3（预发布） |
 
 3.0.0-rc.1 的改动：
 
@@ -197,7 +198,7 @@ git push origin v2.4.0
 - **新增 `WebViewShellOptions`**：根位置 / 产品目录 / 应用目录 / 完整路径四级配置。
 - **新增 ASP.NET Core 风格 DI**：`services.AddBrowserShellWebView(...)`，
   提供 `WebViewShell` 单例与 `IWebViewShellFactory`。
-- `WindowChromeKit.Wpf` 升级到 2.2.0（3.0.2 起 2.3.0，3.1.0-rc.1 起 2.3.1）。
+- `WindowChromeKit.Wpf` 升级到 2.2.0（3.0.2 起 2.3.0，3.1.0-rc.2 起 2.3.3）。
 - 源文件按职责分层（`Hosting` / `Environment` / `Windows` / `Presentation` / `Internal`），
   命名空间不变，调用方无需调整 `using`。
 
@@ -212,5 +213,6 @@ git push origin v2.4.0
 原 `src/BrowserShell.Service.SDK`（服务侧窗口能力 SDK，`net8.0`）**已删除**：
 它与本库无代码依赖，其运行时（Kestrel/SignalR 代理层）在更早的重构中已整块移除，
 保留它只会让"BrowserShell 是什么"变得含混。迁移过程见 [`docs/迁移报告.md`](docs/迁移报告.md)。
+
 
 
